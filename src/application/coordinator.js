@@ -83,9 +83,7 @@ export class Coordinator extends EventTarget {
       const required = velaRequirements();
       if (!required.available) return required;
       const { latest, cached } = await this.inspectVela();
-      const result = await probeVela({ manifest: latest || cached, persist: !!cached && sameModel(latest || cached, cached) });
-      if (!result.available && cached && !sameModel(latest, cached)) return probeVela({ manifest: cached, persist: true });
-      return result;
+      return probeVela({ manifest: latest, persist: !!cached });
     })().catch(error => { diagnostics.capture(error, "vela.probe"); return { available: false, code: "network", uncertain: true }; }).then(result => {
       if (!result.available) diagnostics.record("vela.unavailable", result);
       if (this.velaCheck === task) {

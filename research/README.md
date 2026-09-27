@@ -1,6 +1,45 @@
-# VELA-v4 Value Table Generation Guide
+# VELA Value Table Generation Guide
 
 English | [한국어](README.ko.md)
+
+## VELA v4.1 — COMPACT48
+
+| Directory | Purpose |
+|---|---|
+| `vela-v4.1/full48/` | One-shot cap-5, horizon-48 table generator |
+| `vela-v4.1/include/` | Required generator headers |
+| `vela-v4.1/compression/src/` | Shared time/hand structure fitting and quantized export |
+
+The selected output is `vela-v4.1/compression/models/quant_q6_k64_t12.bin` (37.68 MiB). FULL48 tables are required for generation, not runtime. The WASM build guide is in [native](../src/policies/vela/native/README.md).
+
+Run the following from the project root on Windows with MSYS2 UCRT64 g++, Python and NumPy. These commands perform full model generation; they were not rerun when packaging these sources. FULL48 tables alone occupy about 42.72 GiB, with additional space required for the final FP32 snapshot and compression intermediates.
+
+```powershell
+Push-Location research/vela-v4.1
+try {
+    New-Item -ItemType Directory -Force bin, compression/results | Out-Null
+    g++ -std=c++17 -O3 -march=native -fopenmp -I include full48/solve-hands-full48.cpp -o bin/solve-hands.exe
+    ./bin/solve-hands.exe 5 48 full48/model/full48 12
+    python compression/src/analyze_low.py
+    python compression/src/fit_shared.py 6
+    '[]' | Set-Content -Encoding ascii compression/results/models.json
+    python compression/src/export_quantized.py
+} finally {
+    Pop-Location
+}
+```
+
+The original exporter also writes a T8 comparison candidate. The selected v4.1 file is T12. Linear algebra implementations can produce different bytes; regenerated models require value/action and policy-score validation.
+
+See the [final research report](vela-v4.1/report-ko.md). In 90,000 independent paired games, the candidate scored 1876.5108 versus FULL48's 1878.0848; the original noninferiority gate was not met. This comparison is against FULL48, not the deployed H24+Four model.
+
+Sources: `adventure_vela/research/full_hand_dp/oneshot_full48_20260927/` (generator), `adventure_vela/research/value_compression/full48_shared_structure_v1_20260927/` (compression/report), and `adventure_vela/bak/legacy_20260926/S2_20260919_RDC/vendor/research/` (headers). Only the input path in `common.py` was adjusted for this layout. Report figure embeds and machine-local links are represented as text; original evidence remains in the source research directory.
+
+Reference decoded model SHA-256: `261ed5f731511119391278ae8800597ded67dbb882808e06ba2633ee58a292dc`.
+
+---
+
+## VELA v1–v4 — Previous generation workflow
 
 To generate the VELA-v4 models from scratch, use the generators from **V1, V3, and V4**. Do not use the V2 generator for this workflow.
 

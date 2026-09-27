@@ -1,14 +1,26 @@
-import { modelFileUrl, fetchManifest, validateManifest, sameModel, LOCAL_MODEL } from "./model.js";
+import { modelFileUrl, fetchManifest, validateManifest, sameModel, LOCAL_MODEL, MODEL_ID } from "./model.js";
 import { modelDirectory, writeJson, selectCachedModel, pruneCachedModels, hasCachedModel } from "./storage.js";
 import { fileWriter, checkStorage, storageIssue } from "./files.js";
 import { consumeModel, gunzipStream } from "./streams.js";
 import { responseFor, runtimeFiles, createRuntime, saveRuntime } from "./runtime.js";
 import { fetchJson } from "../../platform/requests.js";
-import { createPredictor } from "../../policies/vela/predictor.mjs";
-import { createValueFeatures } from "../../policies/vela/value-features.js";
 
-let module, ready = false, loadedInfo, predict, valueFeatures;
+let module, ready = false, loadedInfo, predictScore;
 const post = (type, data = {}) => self.postMessage({ type, ...data });
+async function preparePredictor(manifest) {
+  try {
+    const [{ createPredictor }, model] = await Promise.all([
+      import("../../policies/vela/predictor.mjs"),
+      fetchJson(new URL(`../../../public/models/${MODEL_ID}/predictor.json`, import.meta.url)),
+    ]);
+    if (model.sourceModelSha256 !== manifest.decodedSha256 || model.usePhi)
+      throw Error("Score predictor/model mismatch");
+    predictScore = createPredictor(model);
+  } catch (error) {
+    predictScore = null;
+    console.error("VELA score predictor unavailable", error);
+  }
+}
 async function cachedBundle(manifest, includeStaged = true) {
   const directory = await modelDirectory(manifest);
   for (const name of includeStaged ? ["complete.json", "staged.json"] : ["complete.json"]) {
@@ -76,6 +88,7 @@ async function probe(manifest, persist) {
   return { available: true, cacheIssue, storage: !!navigator.storage?.getDirectory && !!(file?.createSyncAccessHandle || file?.createWritable) };
 }
 async function prepare({ persist, manifest, cachedOnly = false }) {
+  const predictorReady = preparePredictor(manifest);
   post("progress", { phase: "engine", fraction: 0 });
   let cached = persist ? await cachedBundle(manifest).catch(() => null) : null;
   if (cachedOnly && !cached) throw Object.assign(Error("저장된 모델을 읽지 못했습니다."), { code: "cache-missing" });
@@ -118,12 +131,16 @@ async function prepare({ persist, manifest, cachedOnly = false }) {
           cacheSaved = true;
         } catch (error) { cacheIssue = storageIssue(error); }
       }
+      if (directory && cacheSaved && !cacheIssue) {
+        try {
+          await writeJson(directory, "complete.json", { manifest, savedAt: Date.now() });
+          await selectCachedModel(manifest);
+        } catch (error) { cacheIssue = storageIssue(error); cacheSaved = false; }
+      }
+      try { await pruneCachedModels(manifest); }
+      catch (error) { cacheIssue ||= storageIssue(error); }
+      await predictorReady;
       ready = true;
-      try {
-        if (manifest.decodedSha256 !== "14740e47cb2a967e95463cb3615a5abaedeb5a7f371460a65d1a6401fca1b736") throw Error("No score predictor for this model version");
-        predict = createPredictor(await fetchJson(new URL("../../../public/models/vela-v4/predictor.json", import.meta.url)));
-        valueFeatures = createValueFeatures(module, ptr);
-      } catch (error) { predict = null; console.error("Score predictor unavailable", error); }
       loadedInfo = { fromCache, cacheSaved, cacheFailed: !!cacheIssue, cacheIssue, manifest, memoryBytes: module.HEAPU8.byteLength };
       post("ready", loadedInfo);
       return;
@@ -145,6 +162,7 @@ self.onmessage = async ({ data }) => {
     if (LOCAL_MODEL) data = { ...data, persist: false, cachedOnly: false, stageOnly: false };
     if (["prepare", "probe", "storage"].includes(data.type)) {
       const manifest = data.manifest ? validateManifest(data.manifest) : await fetchManifest();
+      if (manifest.id !== MODEL_ID) throw Object.assign(Error("현재 버전의 모델이 필요합니다."), { code: "model" });
       if (data.type === "probe") { post("support", await probe(manifest, data.persist)); return; }
       if (data.type === "storage") { post("support", await checkStorage(manifest.bytes)); return; }
       if (data.stageOnly) { post("ready", await stage(manifest)); return; }
@@ -175,8 +193,16 @@ self.onmessage = async ({ data }) => {
     const offset = module._values_ptr() / 8;
     const values = Array.from(module.HEAPF64.subarray(offset, offset + s.hand.length + 1));
     let expectedFinalScore;
-    try { if (predict) expectedFinalScore = predict(values[best], valueFeatures(s, values[best])); }
-    catch (error) { console.error("Score prediction failed", error); }
+    if (predictScore) {
+      try {
+        expectedFinalScore = predictScore(s, values[best]);
+        if (!Number.isFinite(expectedFinalScore)) throw Error("Non-finite score prediction");
+      } catch (error) {
+        expectedFinalScore = undefined;
+        predictScore = null;
+        console.error("VELA score prediction failed", error);
+      }
+    }
     post("result", { id: data.id, best, values, expectedFinalScore, elapsedMs: performance.now() - start });
   } catch (error) { post("error", { id: data.id, message: error.message, stack: error.stack, code: error.code || (error.name === "CompileError" ? "wasm" : "network") }); }
 };

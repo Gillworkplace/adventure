@@ -1,8 +1,36 @@
 export function createPredictor(model) {
-  const trees=model.trees.map(t=>({f:Int16Array.from(t.feature),threshold:Float64Array.from(t.threshold),left:Uint16Array.from(t.left),right:Uint16Array.from(t.right),value:Float64Array.from(t.value)}));
-  return function predictFinalScore(q,features) {
-    let correction=model.baseline;
-    for(const t of trees){let n=0;while(t.f[n]>=0)n=features[t.f[n]]<=t.threshold[n]?t.left[n]:t.right[n];correction+=t.value[n];}
-    return q+correction;
+  if (model.format !== "vela-v4.1-score-v1") throw Error("Unsupported predictor format");
+  const trees = model.trees.map(tree => ({
+    feature: Int16Array.from(tree.feature),
+    threshold: Float64Array.from(tree.threshold),
+    left: Uint16Array.from(tree.left),
+    right: Uint16Array.from(tree.right),
+    value: Float64Array.from(tree.value),
+  }));
+  const classOf = Uint8Array.from(model.classOf);
+  return function predictFinalScore(state, q, phi) {
+    if (state.diceUsed >= 100 && !state.bonusRoll) return state.position;
+    if (!Number.isFinite(q)) throw Error("A finite v4.1 action Q is required");
+    if (model.usePhi && !Number.isFinite(phi)) throw Error("The v4.1 compact potential is required");
+    const r = 100 - state.diceUsed;
+    if (!Number.isInteger(r) || r < 0 || r > 100) throw Error("Invalid diceUsed");
+    const x = new Float32Array(model.usePhi ? 51 : 50);
+    x[0] = r; x[1] = state.position; x[2] = +state.bonusRoll;
+    x[3] = state.hand.length; x[4] = q;
+    let offset = 0;
+    if (model.usePhi) x[5] = phi - q;
+    else offset = -1;
+    x[6 + offset] = q - state.position;
+    for (const id of state.hand) x[6 + classOf[id] + offset]++;
+    for (let id = 1; id <= 30; id++)
+      if (state.deckAvailable & (1 << (id - 1))) x[28 + classOf[id] + offset]++;
+    let correction = model.baseline;
+    for (const tree of trees) {
+      let node = 0;
+      while (tree.feature[node] >= 0)
+        node = x[tree.feature[node]] <= tree.threshold[node] ? tree.left[node] : tree.right[node];
+      correction += tree.value[node];
+    }
+    return q + model.correction[r] + correction;
   };
 }

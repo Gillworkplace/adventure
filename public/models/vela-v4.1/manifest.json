@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "vela-v4.1",
+  "name": "VELA v4.1",
+  "version": "v4.1-20260927",
+  "file": "model.bin.gz",
+  "bytes": 31779623,
+  "decodedBytes": 39512548,
+  "sha256": "d55a431e06d9acaf58cd94c03d7036d94b2f5e1d87647d727a5fa8c20a52cb96",
+  "decodedSha256": "261ed5f731511119391278ae8800597ded67dbb882808e06ba2633ee58a292dc",
+  "chunkBytes": 8388608,
+  "chunkHashes": [
+    "af8dbe7d47b38f3ecac5bad814d65a7a2c93b9fb8c8dcac1c1baee6fe15fe319",
+    "d935c51ba53ff04a61e2646d06ce9d8c89fdb515227ed7b76b3b2b6d19750588",
+    "0cb4b7489b046b133f4f46bfefe46e5a67a1365065cb4aff929388a8682175a5",
+    "ffc2583f6397dd1ff73b034b1b03a5e46d9f0def586255d7a3d80adfd94f40a2",
+    "3ab21ff045d5c944a6454f4852223d9f6d6ae7a001010399ecdbac4a4cbff682"
+  ],
+  "referenceMeanScore": 1876.5108,
+  "runtime": {
+    "module": {
+      "file": "../../../src/policies/vela/vela.mjs",
+      "bytes": 13428,
+      "sha256": "bd398cd29f0a9d51a6d41f47368dfa3a0018ede7c93757bb742f78094da48bd8"
+    },
+    "wasm": {
+      "file": "../../../src/policies/vela/vela.wasm",
+      "bytes": 189249,
+      "sha256": "a373b1bc82492b6524c745278901a54c1bd9ab8b5e7a56099879881edcb4134a"
+    }
+  }
+}

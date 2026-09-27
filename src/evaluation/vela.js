@@ -1,3 +1,4 @@
+import { MODEL_ID, MODEL_NAME } from "../compute/vela/model.js";
 import { BOARD_SIZE } from "../rules/index.js";
 
 export async function evaluateVela({ snapshot, backend, signal, requestId, revision }) {
@@ -11,8 +12,8 @@ export async function evaluateVela({ snapshot, backend, signal, requestId, revis
   return {
     status: "complete", model: "vela", requestId, revision,
     profile: { model: "vela", engine: "cpu" },
-    policyVersion: backend.info?.manifest?.id ?? "vela-v4",
-    modelName: backend.info?.manifest?.name ?? "VELA v4",
+    policyVersion: backend.info?.manifest?.id ?? MODEL_ID,
+    modelName: backend.info?.manifest?.name ?? MODEL_NAME,
     modelVersion: backend.info?.manifest?.version,
     elapsedMs: result.elapsedMs,
     expectedFinalScore: terminal ? snapshot.position : Number.isFinite(result.expectedFinalScore)

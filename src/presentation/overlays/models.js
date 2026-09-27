@@ -10,7 +10,9 @@ import { downloadProgress } from "./download-progress.js";
 
 const megabytes = bytes => `${Math.round(bytes / 1e6).toLocaleString()} MB`;
 const transferLabel = localModel ? "파일 읽기" : "다운로드";
-const memoryText = manifest => `메모리 여유 약 ${Math.ceil(manifest.decodedBytes * 1.5 / 1e9)} GB 이상 권장 · 기기별 차이`;
+const memoryText = manifest => manifest.recommendedMemoryBytes
+  ? `메모리 여유 약 ${megabytes(manifest.recommendedMemoryBytes)} 이상 권장 · 기기별 차이`
+  : "메모리 사용량은 기기와 게임 상태에 따라 달라집니다.";
 const comparison = model => {
   const { meanScore, relativeTime } = modelComparison[model];
   return `<span class="model-choice-metrics"><span>평균 기록 <b>약 ${Math.round(meanScore).toLocaleString("ko-KR")}점</b></span><span>추론 시간 <b>${relativeTime}</b></span></span>`;
@@ -43,7 +45,7 @@ export function showModelSelection(coordinator, { initial = false, selectedModel
       hint.textContent = compatibilityMessage(support.code).title;
       showSupport(detail, support.code, { retry: () => coordinator.checkVela(true), target: "VELA 사용 가능 여부", label: "이유·해결 방법" });
       if (selected === "vela") { selected = "x36"; body.querySelector('[name=model][value=x36]').checked = true; }
-    } else { hint.textContent = localModel ? "이 PC의 모델 불러오기 · 약 813 MB" : "첫 사용 시 모델 전체 다운로드 · 약 813 MB"; detail.replaceChildren(); }
+    } else { hint.textContent = localModel ? "이 PC의 모델 불러오기 · 약 32 MB" : "첫 사용 시 모델 전체 다운로드 · 약 32 MB"; detail.replaceChildren(); }
     body.querySelector(".primary").disabled = deletingCache || selected === "vela" && input.disabled;
     input.closest(".model-option").classList.toggle("has-support", !!detail.firstElementChild);
     paintChoices(body);
@@ -61,7 +63,7 @@ export function showModelSelection(coordinator, { initial = false, selectedModel
     heading.textContent = "모델 선택";
     body.innerHTML = `<p class="model-intro">게임의 다음 선택을 도와줄 모델을 고르세요.</p>
       <div class="model-options" role="radiogroup" aria-label="모델">
-        <div class="model-option"><label class="model-choice"><input type="radio" name="model" value="vela"><span class="model-choice-copy"><strong>VELA <small>v4</small></strong><span>CPU로 바로 판단</span>${comparison("vela")}<small class="vela-availability">사용 가능 여부 확인 중</small></span><span class="model-check" aria-hidden="true"></span></label><div class="model-support vela-support"></div></div>
+        <div class="model-option"><label class="model-choice"><input type="radio" name="model" value="vela"><span class="model-choice-copy"><strong>VELA <small>v4.1</small></strong><span>CPU로 바로 판단</span>${comparison("vela")}<small class="vela-availability">사용 가능 여부 확인 중</small></span><span class="model-check" aria-hidden="true"></span></label><div class="model-support vela-support"></div></div>
         <label class="model-choice"><input type="radio" name="model" value="x36"><span class="model-choice-copy"><strong>X36 <small>G3</small></strong><span>시뮬레이션으로 선택 비교</span>${comparison("x36")}<small>GPU 또는 CPU · 사용량 선택 가능</small></span><span class="model-check" aria-hidden="true"></span></label>
       </div>
       <p class="model-comparison-note">참고값 · VELA CPU / G3 GPU 높음 · 기기·상태별 차이</p>
@@ -95,20 +97,14 @@ export function showModelSelection(coordinator, { initial = false, selectedModel
     body.querySelectorAll(".model-meter, progress").forEach(element => element.hidden = true);
     body.querySelector(".model-loading-title").textContent = "사용할 모델을 확인하고 있습니다.";
     try {
-      const { latest, cached } = await coordinator.inspectVela(signal);
+      const { latest } = await coordinator.inspectVela(signal);
       if (signal.aborted || current !== epoch || !node.open) return;
       if (localModel) localPreparation(latest);
-      else if (cached && !sameModel(latest, cached)) versionChoice(latest, cached);
       else if (coordinator.velaCacheAllowed) loadVela(true, latest);
       else consent(latest);
     } catch (error) {
       if (!signal.aborted && current === epoch && node.open) {
-        if (!localModel && coordinator.vela?.ready) {
-          const manifest = coordinator.vela.info.manifest;
-          if (!coordinator.velaCacheAllowed) consent(manifest);
-          else loadVela(coordinator.velaCacheAllowed, manifest);
-        }
-        else failure(error, inspectVela);
+        failure(error, inspectVela);
       }
     }
   }
@@ -121,21 +117,6 @@ export function showModelSelection(coordinator, { initial = false, selectedModel
     const primary = body.querySelector(".primary"); primary.textContent = "모델 불러오기";
     primary.onclick = () => loadVela(false, manifest);
     focusPrimary();
-  }
-  function versionChoice(latest, cached) {
-    heading.textContent = latest ? "새 VELA 모델이 있습니다" : "저장된 모델을 사용할까요?";
-    body.innerHTML = `<p class="model-intro">${latest ? "업데이트하거나, 저장된 버전으로 계속할 수 있습니다." : "최신 버전을 확인하지 못했습니다. 저장된 모델은 사용할 수 있습니다."}</p>
-      <dl class="model-versions"><div><dt>저장된 버전</dt><dd class="model-saved-version"></dd></div>${latest ? '<div><dt>새 버전</dt><dd class="model-latest-version"></dd></div>' : ""}</dl>
-      <p class="model-memory">${memoryText(latest || cached)}</p>
-      ${latest ? `<p class="model-note">추가 저장 공간 약 ${megabytes(latest.bytes)} · 교체 중 추천이 잠시 중단됩니다.<br>취소하거나 실패하면 이전 모델을 다시 준비합니다.</p>` : ""}
-      <footer><button class="model-back">이전</button><span></span>${latest ? '<button class="primary model-update">업데이트</button>' : ""}<button class="model-use-saved ${latest ? "" : "primary"}">저장된 버전 사용</button></footer>`;
-    body.querySelector(".model-saved-version").textContent = cached.version;
-    if (latest) {
-      body.querySelector(".model-latest-version").textContent = latest.version;
-      body.querySelector(".model-update").onclick = () => loadVela(true, latest);
-    }
-    body.querySelector(".model-use-saved").onclick = () => loadVela(true, cached, true);
-    body.querySelector(".model-back").onclick = select; focusPrimary();
   }
   function consent(manifest, issue) {
     heading.textContent = "VELA 준비";

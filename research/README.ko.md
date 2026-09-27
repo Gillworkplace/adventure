@@ -1,6 +1,45 @@
-# VELA-v4 가치테이블 생성 가이드
+# VELA 가치테이블 생성 가이드
 
 [English](README.md) | 한국어
+
+## VELA v4.1 — COMPACT48
+
+| 폴더 | 역할 |
+|---|---|
+| `vela-v4.1/full48/` | 손패 최대 5장, horizon 48의 연속 DP 생성기 |
+| `vela-v4.1/include/` | 생성기에 필요한 의존 헤더 |
+| `vela-v4.1/compression/src/` | 시간·손패 공유 구조 학습 및 양자화 내보내기 |
+
+최종 파일은 `vela-v4.1/compression/models/quant_q6_k64_t12.bin`(37.68 MiB)입니다. FULL48 테이블은 생성 과정에만 필요하며 실행에는 필요하지 않습니다. WASM 빌드는 [native 안내](../src/policies/vela/native/README.md)를 참고하세요.
+
+Windows에서 MSYS2 UCRT64 g++, Python, NumPy를 준비한 뒤 프로젝트 루트에서 실행합니다. 아래 명령은 전체 모델 생성 작업이며 이번 소스 정리 과정에서는 다시 실행하지 않았습니다. FULL48 테이블만 약 42.72 GiB이고, 최종 FP32 스냅샷과 압축 중간 결과에 추가 공간이 필요합니다.
+
+```powershell
+Push-Location research/vela-v4.1
+try {
+    New-Item -ItemType Directory -Force bin, compression/results | Out-Null
+    g++ -std=c++17 -O3 -march=native -fopenmp -I include full48/solve-hands-full48.cpp -o bin/solve-hands.exe
+    ./bin/solve-hands.exe 5 48 full48/model/full48 12
+    python compression/src/analyze_low.py
+    python compression/src/fit_shared.py 6
+    '[]' | Set-Content -Encoding ascii compression/results/models.json
+    python compression/src/export_quantized.py
+} finally {
+    Pop-Location
+}
+```
+
+원본 내보내기 스크립트는 비교용 T8 파일도 생성합니다. v4.1에 사용하는 파일은 T12입니다. 선형대수 환경에 따라 생성 바이트가 달라질 수 있으므로 재생성 후 가치·행동 일치와 정책 점수 검증이 필요합니다.
+
+[최종 연구 보고서](vela-v4.1/report-ko.md): 독립 90,000 paired 게임에서 후보 1876.5108점, FULL48 1878.0848점이며 원 연구의 비열등성 기준은 미충족입니다. 운영 H24+Four와 비교한 수치는 아닙니다.
+
+출처는 `adventure_vela/research/full_hand_dp/oneshot_full48_20260927/`(생성기), `adventure_vela/research/value_compression/full48_shared_structure_v1_20260927/`(압축·보고서), `adventure_vela/bak/legacy_20260926/S2_20260919_RDC/vendor/research/`(헤더)입니다. 소스 변경은 현재 폴더 구성에 맞춘 `common.py`의 입력 경로뿐입니다. 보고서의 외부 그림과 PC 전용 링크는 텍스트로 표시하며 원본 증거 자료는 원 연구 경로에 남아 있습니다.
+
+기준 모델의 압축 해제 후 SHA-256: `261ed5f731511119391278ae8800597ded67dbb882808e06ba2633ee58a292dc`.
+
+---
+
+## VELA v1~v4 — 이전 버전 생성 과정
 
 VELA-v4 모델을 처음부터 만들 때는 **V1, V3, V4**의 생성기 파일을 사용합니다. V2 생성기는 사용하지 않습니다.
 

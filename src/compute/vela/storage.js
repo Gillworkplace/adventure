@@ -1,4 +1,4 @@
-import { modelKey, sameModel, validateManifest, fetchManifest, LOCAL_MODEL } from "./model.js";
+import { modelKey, sameModel, validateManifest, fetchManifest, LOCAL_MODEL, MODEL_ID } from "./model.js";
 import { writeBytes } from "./files.js";
 
 const KEY = "adventure-vela-cache-consent-v2";
@@ -71,13 +71,20 @@ export async function selectCachedModel(manifest) {
   const cache = await root.getDirectoryHandle(CACHE_DIRECTORY);
   await writeJson(cache, "selected.json", { key: modelKey(manifest) });
 }
-export async function pruneCachedModels(manifest) {
+export async function pruneCachedModels(manifest, signal) {
+  validateManifest(manifest);
+  if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
+  if (!navigator.storage?.getDirectory) return;
   const root = await navigator.storage.getDirectory();
-  const cache = await root.getDirectoryHandle(CACHE_DIRECTORY);
+  let cache;
+  try { cache = await root.getDirectoryHandle(CACHE_DIRECTORY); }
+  catch (error) { if (error.name === "NotFoundError") return; throw error; }
   const keep = modelKey(manifest);
-  for await (const [name, directory] of cache.entries())
+  for await (const [name, directory] of cache.entries()) {
+    if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
     if (directory.kind === "directory" && name.startsWith("vela-") && name !== keep)
       await cache.removeEntry(name, { recursive: true });
+  }
 }
 export async function readCachedModel() {
   if (!navigator.storage?.getDirectory) return null;
@@ -103,11 +110,15 @@ export async function readCachedModel() {
   return complete.sort((a, b) => b.savedAt - a.savedAt)[0]?.manifest ?? null;
 }
 export async function inspectModels(signal) {
-  const [latest, cached] = await Promise.allSettled([
-    fetchManifest(signal), cacheAllowed() ? readCachedModel() : Promise.resolve(null),
-  ]);
+  const latest = await fetchManifest(signal);
   if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
-  const saved = cached.status === "fulfilled" ? cached.value : null;
-  if (latest.status === "rejected" && !saved) throw latest.reason;
-  return { latest: latest.status === "fulfilled" ? latest.value : null, cached: saved };
+  if (latest.id !== MODEL_ID) throw Error("Incompatible model manifest");
+  try { await pruneCachedModels(latest, signal); }
+  catch (error) {
+    if (signal?.aborted) throw error;
+    console.error("Model cache cleanup failed", error);
+  }
+  if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
+  const saved = cacheAllowed() ? await readCachedModel().catch(() => null) : null;
+  return { latest, cached: sameModel(latest, saved) ? saved : null };
 }

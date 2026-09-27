@@ -4,30 +4,16 @@ import { inspectVoiceCache, clearVoiceCache, loadVoicePack } from "../speech/sto
 import { recommendationId, requestCue } from "../speech/messages.js";
 import { diagnostics } from "../platform/report.js";
 
+import { cueCategory, normalizeCues } from "../speech/cues.js";
+export { DEFAULT_CUES, cueCategory } from "../speech/cues.js";
+
 const PREFERENCES = "adventure.voice.settings.v2";
-export const DEFAULT_CUES = {
-  recommendation: true,
-  calculating: true,
-  obstruction: true,
-  deck: true,
-  connection: true,
-};
-
-export function cueCategory(clip) {
-  if (clip === "roll" || clip?.startsWith("card-") || clip === "preview") return "recommendation";
-  if (clip === "calculating") return "calculating";
-  if (clip?.startsWith("deck-")) return "deck";
-  if (clip === "disconnected" || clip === "reader") return "connection";
-  if (["covered", "window", "small", "stale", "score", "dice", "hand", "bonus"].includes(clip)) return "obstruction";
-  return "recommendation";
-}
-
 function readPreferences() { try { return JSON.parse(localStorage.getItem(PREFERENCES)) || {}; } catch { return {}; } }
 function settings(value) {
   return { language: LANGUAGES.some(lang => lang.id === value.language) ? value.language : "ko",
     voice: VOICES.includes(value.voice) ? value.voice : typeof value.voice === "string" && value.voice.startsWith("M") ? "M" : "F",
     volume: Number.isFinite(value.volume) ? Math.min(1, Math.max(0, value.volume)) : .25, persist: value.persist === true,
-    cues: { ...DEFAULT_CUES, ...(typeof value.cues === "object" && value.cues !== null ? value.cues : {}) } };
+    cues: normalizeCues(value.cues) };
 }
 export class AssistVoice extends EventTarget {
   constructor(session, coordinator, assist, { load = loadVoicePack, audio = new VoiceAudio() } = {}) {
@@ -36,6 +22,7 @@ export class AssistVoice extends EventTarget {
     this.status = "off"; this.enabled = false; this.holds = 0; this.epoch = 0; this.inspectEpoch = 0;
     this.cache = { available: !!globalThis.caches, bytes: 0, files: {}, freeBytes: null };
     this.lastAvailable = this.available;
+    this.recentRequests = new Map();
     this.update = () => {
       this.sync();
       if (this.lastAvailable !== this.available) { this.lastAvailable = this.available; this.publish(); }
@@ -128,8 +115,7 @@ export class AssistVoice extends EventTarget {
       return { key: "request:" + context + ":" + request.key, clip: request.key, delay: request.delay };
     }
     if (this.deckVerifying && this.assist.reading.ready) {
-      this.deckVerifying = false;
-      if (!this.isCueEnabled("deck-ready")) return null;
+      if (!this.isCueEnabled("deck-ready")) { this.deckVerifying = false; return null; }
       return { key: "deck-ready:" + context, clip: "deck-ready", delay: 100 };
     }
     if (!this.assist.reading.ready || !this.session.canRecommend || this.session.view.terminal) return null;
@@ -145,9 +131,13 @@ export class AssistVoice extends EventTarget {
     return clip && this.isCueEnabled(clip) ? { key: "action:" + context + ":" + result.model + ":" + action, clip, delay: 200 } : null;
   }
   sync() {
+    if (this.connectionEpoch !== this.assist.epoch || this.session.mode !== "assist") {
+      this.connectionEpoch = this.assist.epoch; this.deckVerifying = false; this.recentRequests.clear();
+    }
+    if (this.assist.reading.ready) this.recentRequests.clear();
     if (!this.available) { if (this.enabled || this.preparing) this.disable(); else this.publish(); return; }
     if (!this.enabled || this.preparing || this.holds || this.previewing || this.playbackBlocked) return;
-    if (this.speaking && this.speakingNotice) {
+    if (this.playback && this.speakingNotice) {
       if (this.session.mode !== "assist") { this.stop(); return; }
       const cue = this.cue();
       if (cue?.clip === "disconnected") {
@@ -170,10 +160,8 @@ export class AssistVoice extends EventTarget {
     if (cue?.key === this.desired?.key) return;
 
     if (this.speaking) {
-      if (cue?.clip && cue.clip === this.desired?.clip) {
-        this.desired = cue;
-        return;
-      }
+      if (this.desired?.key?.startsWith("request:") && this.session.mode === "assist" &&
+          this.assist.stream && !this.assist.reading.ready && this.isCueEnabled(this.desired.clip) && cue?.clip !== "disconnected") return;
       if (this.desired?.key?.startsWith("action:")) {
         if (this.session.mode !== "assist" || cue?.clip === "disconnected") {
           this.stop(); this.desired = cue;
@@ -196,6 +184,7 @@ export class AssistVoice extends EventTarget {
 
     this.stop(); this.desired = cue;
     if (!cue || cue.key === this.delivered) return;
+    if (performance.now() - (this.recentRequests.get(cue.clip) ?? -Infinity) < 15000) return;
     diagnostics.record("voice.queued", { clip: cue.clip, delay: cue.delay, key: cue.key });
     this.timer = setTimeout(() => this.speak(cue), cue.delay);
   }
@@ -207,6 +196,9 @@ export class AssistVoice extends EventTarget {
       diagnostics.record("voice.speak", { clip: cue.clip, delay: cue.delay, key: cue.key });
       await this.audio.play(this.pack.url(cue.clip)); controller.signal.throwIfAborted();
       if (this.desired === cue) this.delivered = cue.key;
+      if (cue.clip === "deck-ready") this.deckVerifying = false;
+      if (["window", "small", "covered", "score", "dice", "hand", "bonus", "stale"].includes(cue.clip))
+        this.recentRequests.set(cue.clip, performance.now());
       diagnostics.record("voice.complete", { clip: cue.clip });
     } catch (error) {
       if (error.name !== "AbortError" && !controller.signal.aborted) {

@@ -25,6 +25,15 @@ function deckSignature(mask) {
   return cards.slice(1).filter(card => cardClass(card.id) === card.id).map(card => idsFor(card.id).filter(id => mask & (1 << (id - 1))).length).join(",");
 }
 
+function bonusOutcomes(previous, projection, outcome) {
+  if (!projection.random) return [previous.bonusRoll];
+  if (previous.bonusRoll) return [false];
+  const values = [];
+  if (outcome.sums.some(sum => sum > 2 && sum < 12)) values.push(false);
+  if (outcome.sums.some(sum => sum % 2 === 0)) values.push(true);
+  return values;
+}
+
 export function reconcileState(previous, observed) {
   const candidates = [];
   if (previous.diceUsed >= 100 && !previous.bonusRoll) return candidates;
@@ -33,21 +42,8 @@ export function reconcileState(previous, observed) {
     const outcome = projection.outcomes.find(outcome => outcome.score === observed.position);
     if (!outcome) continue;
 
-    const normalDice = observed.diceUsed === previous.diceUsed + projection.diceDelta;
-    const doublePossible = outcome.sums.some(sum => sum % 2 === 0);
-    const bonusReconcile = !action && (observed.diceUsed === previous.diceUsed) && doublePossible;
-    if (!normalDice && !bonusReconcile) continue;
-
-    if (bonusReconcile) {
-      if (tiles[observed.position - 1].event === 2) continue;
-      if (observed.hand.length !== previous.hand.length || !same(classes(previous.hand), observed.hand)) continue;
-    } else {
-      const bonusPossible = projection.random
-        ? previous.bonusRoll ? !observed.bonusRoll
-          : outcome.sums.some(sum => observed.bonusRoll ? sum % 2 === 0 : sum > 2 && sum < 12)
-        : observed.bonusRoll === previous.bonusRoll;
-      if (!bonusPossible) continue;
-    }
+    if (observed.diceUsed !== previous.diceUsed + projection.diceDelta) continue;
+    if (!bonusOutcomes(previous, projection, outcome).includes(observed.bonusRoll)) continue;
     const hand = [...previous.hand];
     if (action) hand.splice(action - 1, 1);
     let mask = previous.deckAvailable, reset = false;
@@ -81,6 +77,7 @@ export function reconcileMultiStep(previous, observed) {
   if (direct.length) return direct;
   const diceDelta = observed.diceUsed - previous.diceUsed;
   if (diceDelta < 0 || diceDelta > 2) return [];
+  if (previous.diceUsed >= 100 && !previous.bonusRoll) return [];
 
   const candidates2 = [];
   for (let action1 = 0; action1 <= previous.hand.length; action1++) {
@@ -90,23 +87,24 @@ export function reconcileMultiStep(previous, observed) {
       if (action1) hand1.splice(action1 - 1, 1);
       const draw1 = tiles[outcome1.score - 1].event === 2 && hand1.length < 5;
       if (draw1) continue; // Avoid ambiguous card draw branching in multi-step recovery
-      const midState = {
-        ...previous,
-        position: outcome1.score,
-        diceUsed: previous.diceUsed + proj1.diceDelta,
-        bonusRoll: proj1.random ? outcome1.sums.some(s => s % 2 === 0) : previous.bonusRoll,
-        hand: hand1,
-        deckAvailable: previous.deckAvailable,
-      };
-      const step2 = reconcileState(midState, observed);
-      if (step2.length === 1) candidates2.push(step2[0]);
+      for (const bonusRoll of bonusOutcomes(previous, proj1, outcome1)) {
+        const midState = {
+          ...previous,
+          position: outcome1.score,
+          diceUsed: previous.diceUsed + proj1.diceDelta,
+          bonusRoll,
+          hand: hand1,
+          deckAvailable: previous.deckAvailable,
+        };
+        candidates2.push(...reconcileState(midState, observed));
+      }
     }
   }
   const unique = new Map();
   for (const c of candidates2) {
-    unique.set(JSON.stringify(core(c.state)), c);
+    unique.set(keyOf({ ...c.state, hand: classes(c.state.hand) }) + ":" + deckSignature(c.state.deckAvailable), c);
   }
-  return unique.size === 1 ? [candidates2[0]] : [];
+  return unique.size === 1 ? [...unique.values()] : [];
 }
 
 export class AssistTracker {

@@ -4,6 +4,8 @@ import { LANGUAGES, loadVoiceCatalog } from "../../speech/manifest.js";
 import { isPackCached } from "../../speech/storage.js";
 import { bindVolumeSlider } from "../input/volume.js";
 
+import { CUE_OPTIONS } from "../../speech/cues.js";
+
 const megabytes = bytes => (bytes / 1e6).toLocaleString("ko-KR", { maximumFractionDigits: 1 }) + " MB";
 function showVoiceInfo() {
   const body = document.createElement("div"); body.className = "voice-license";
@@ -22,11 +24,7 @@ export function showVoiceSettings(voice) {
       <details class="voice-advanced">
         <summary>안내 항목 선택 (고급)</summary>
         <div class="voice-cues-list">
-          <label class="voice-check"><input type="checkbox" name="cue_recommendation"><span>추천 행동 안내<small>주사위 굴리기 및 추천 카드 안내</small></span></label>
-          <label class="voice-check"><input type="checkbox" name="cue_calculating"><span>추천 계산 중 알림<small>"추천 행동을 계산하고 있습니다"</small></span></label>
-          <label class="voice-check"><input type="checkbox" name="cue_obstruction"><span>화면 가림 및 팝업 닫기 요청<small>"팝업을 닫아주세요", 창 크기 조정 등</small></span></label>
-          <label class="voice-check"><input type="checkbox" name="cue_deck"><span>카드 이력 확인 및 스크롤 안내<small>물음표 이력 열기 및 위/아래 스크롤 안내</small></span></label>
-          <label class="voice-check"><input type="checkbox" name="cue_connection"><span>화면 연결 상태 알림<small>화면 공유 종료 및 인식 재연결 안내</small></span></label>
+          ${CUE_OPTIONS.map(([key, label, hint]) => `<label class="voice-check"><input type="checkbox" name="cue_${key}"><span>${label}<small>${hint}</small></span></label>`).join("")}
         </div>
       </details>
     </fieldset>
@@ -40,7 +38,7 @@ export function showVoiceSettings(voice) {
     <p class="voice-error" role="alert" hidden></p>
     <footer><button type="button" class="primary" data-apply>다운로드하고 켜기</button><button type="button" data-preview>미리 듣기</button><button type="button" data-off hidden>음성 끄기</button><button type="button" data-stop hidden>취소</button><button type="button" data-retry hidden>다시 확인</button></footer>`;
   const el = selector => body.querySelector(selector), input = name => el(`[name="${name}"]`);
-  const CUE_KEYS = ["recommendation", "calculating", "obstruction", "deck", "connection"];
+  const CUE_KEYS = CUE_OPTIONS.map(([key]) => key);
   for (const lang of LANGUAGES) input("language").add(new Option(lang.name, lang.id));
   for (const [id, name] of [["F", "여성"], ["M", "남성"]]) input("voice").add(new Option(name, id));
   input("language").value = voice.settings.language; input("voice").value = voice.settings.voice;

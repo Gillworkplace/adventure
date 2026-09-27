@@ -18,7 +18,9 @@ export class ScreenReader {
       else if (data.type === "frame" && data.id === this.id) {
         this.busy = false;
         if (data.error) diagnostics.capture(new Error(data.error.message || "Recognition frame error"), "recognition.worker.frame", { stack: data.error.stack });
-        if (performance.now() - this.sentAt > 3000) return this.fail("stale");
+        if (performance.now() - this.sentAt > 3000) {
+          this.fail("stale"); this.schedule(0); return;
+        }
         this.lastFrame = performance.now();
         this.receive(data);
         const fast = data.observation?.visible && (data.observation.deck?.open || data.observation.issue === "settling");
@@ -46,6 +48,7 @@ export class ScreenReader {
       return this.schedule(100);
     }
     this.busy = true; this.sentAt = now;
+    this.schedule(100);
     try {
       const bitmap = await createImageBitmap(this.video);
       if (this.stopped) { bitmap.close(); return; }

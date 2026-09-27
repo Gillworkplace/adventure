@@ -31,7 +31,7 @@
 .voice-advanced summary::after { content: "▾"; font-size: 11px; color: #789080; transition: transform .2s ease; }
 .voice-advanced[open] summary::after { transform: rotate(180deg); }
 .voice-advanced[open] summary { border-bottom: 1px solid #e7efe5; background: #f3f7f3; }
-.voice-cues-list { padding: 9px 11px; display: grid; gap: 8px; max-height: 180px; overflow-y: auto; overscroll-behavior: contain; }
+.voice-cues-list { padding: 9px 11px; display: grid; gap: 8px; max-height: 180px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #b4cec4 transparent; }
 .voice-cues-list .voice-check { font-size: 11px; color: #365b49; }
 .voice-cues-list .voice-check small { color: #798e7d; font-size: 10px; }
 .voice-data { padding: 14px 0; margin-top: 15px; border-block: 1px solid #dbe5d9; }

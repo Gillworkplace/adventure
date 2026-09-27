@@ -1,6 +1,9 @@
 import { GameRecognizer, findGameRegion } from "./vision.js";
+import { RecognitionStatus } from "./status.js";
 
 let recognizer, region, sourceSize, lastSearch = -Infinity;
+let searchIssue = "window";
+const status = new RecognitionStatus();
 const source = new OffscreenCanvas(1, 1), screen = new OffscreenCanvas(1234, 694);
 const input = source.getContext("2d", { willReadFrequently: true });
 const output = screen.getContext("2d", { willReadFrequently: true });
@@ -38,20 +41,23 @@ self.onmessage = async ({ data }) => {
   try {
     if (!recognizer) throw Error("Reader unavailable");
     const size = bitmap.width + "x" + bitmap.height;
-    if (size !== sourceSize) { region = null; lastSearch = -Infinity; sourceSize = size; source.width = bitmap.width; source.height = bitmap.height; }
+    if (size !== sourceSize) { region = null; lastSearch = -Infinity; searchIssue = "window"; status.reset(); sourceSize = size; source.width = bitmap.width; source.height = bitmap.height; }
     input.drawImage(bitmap, 0, 0);
     let observation = region ? recognizer.read(crop(region)) : null;
     if (!observation?.visible && started - lastSearch > 1200) {
       lastSearch = started;
+      searchIssue = region ? "covered" : "window";
       for (const candidate of findGameRegion(input.getImageData(0, 0, source.width, source.height))) {
-        if (candidate.scale < .9) { observation ||= { visible: false, issue: "small" }; continue; }
         const adjusted = align(candidate);
         if (!adjusted) continue;
+        if (candidate.scale < .9) { searchIssue = "small"; continue; }
         const result = recognizer.read(crop(adjusted));
         if (result.visible) { region = adjusted; observation = result; break; }
       }
     }
-    self.postMessage({ type: "frame", id, observation: observation || { visible: false, issue: "window" },
+    if (observation?.visible) status.reset();
+    else observation = { visible: false, issue: status.update(searchIssue, started) };
+    self.postMessage({ type: "frame", id, observation,
       region, width: source.width, height: source.height, elapsed: performance.now() - started });
   } catch (error) { self.postMessage({ type: "frame", id, observation: { visible: false, issue: "reader" }, error: { message: String(error?.message || error), stack: String(error?.stack || "") } }); }
   finally { bitmap.close(); }

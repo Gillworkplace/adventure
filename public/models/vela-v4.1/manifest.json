@@ -21,12 +21,12 @@
     "module": {
       "file": "../../../src/policies/vela/vela.mjs",
       "bytes": 13428,
-      "sha256": "bd398cd29f0a9d51a6d41f47368dfa3a0018ede7c93757bb742f78094da48bd8"
+      "sha256": "2e02529326bdc630fc8a1d0513925f69cc3de387eb2e81861b7fca0da13401cd"
     },
     "wasm": {
       "file": "../../../src/policies/vela/vela.wasm",
-      "bytes": 189249,
-      "sha256": "a373b1bc82492b6524c745278901a54c1bd9ab8b5e7a56099879881edcb4134a"
+      "bytes": 189620,
+      "sha256": "efd593666002af76e3730aa79a02cfaf62d4eca98b9e35755fe64d3f5453ad25"
     }
   }
 }

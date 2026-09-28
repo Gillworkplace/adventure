@@ -3,6 +3,7 @@
 struct Compact {
  Codec codec;
  std::vector<std::array<int,23>> add;
+ std::vector<std::array<int,5>> remove;
  std::vector<std::array<int16_t,16>> sub;
  static constexpr int R=48,Q=6,K=64,TG=12;
  const float *B=nullptr,*T=nullptr,*GT=nullptr;
@@ -29,8 +30,8 @@ struct Compact {
   GT=reinterpret_cast<const float*>(take((R+1)*TG,4));
   gs=scale();GQ=reinterpret_cast<const int16_t*>(take(size_t(2)*(N+1)*K*TG,2));
   if(offset!=bytes)throw std::runtime_error("Unexpected COMPACT48 data");
-  add.resize(14950);sub.resize(80730);int c[5]={},ix=0;
-  auto gen=[&](auto&&self,int pos,int n,int low)->void{if(pos==n){sub[ix].fill(-1);int z=0;for(int j=0;j<n;j++)sub[ix][z++]=c[j]-1;for(int j=0;j<n;j++)for(int k=j+1;k<n;k++){int p[2]={c[j],c[k]};sub[ix][z++]=codec.rank(p,2)-1;}if(n<5)for(int x=1;x<=22;x++){int d[5];std::copy(c,c+n,d);d[n]=x;std::sort(d,d+n+1);add[ix][x]=codec.rank(d,n+1);}ix++;return;}for(int x=low;x<=22;x++){c[pos]=x;self(self,pos+1,n,x);}};for(int n=0;n<=5;n++)gen(gen,0,n,1);
+  add.resize(14950);sub.resize(80730);remove.resize(80730);int c[5]={},ix=0;
+  auto gen=[&](auto&&self,int pos,int n,int low)->void{if(pos==n){sub[ix].fill(-1);for(int j=0;j<n;j++){int d[5],k=0;for(int t=0;t<n;t++)if(t!=j)d[k++]=c[t];remove[ix][j]=codec.rank(d,n-1);}int z=0;for(int j=0;j<n;j++)sub[ix][z++]=c[j]-1;for(int j=0;j<n;j++)for(int k=j+1;k<n;k++){int p[2]={c[j],c[k]};sub[ix][z++]=codec.rank(p,2)-1;}if(n<5)for(int x=1;x<=22;x++){int d[5];std::copy(c,c+n,d);d[n]=x;std::sort(d,d+n+1);add[ix][x]=codec.rank(d,n+1);}ix++;return;}for(int x=low;x<=22;x++){c[pos]=x;self(self,pos+1,n,x);}};for(int n=0;n<=5;n++)gen(gen,0,n,1);
  }
  double val(int r,int b,int p,int h,int n)const{
   if(!r&&!b)return p;int x=b*(N+1)+p,row=r*2*(N+1)+x;if(!n)return B[row];

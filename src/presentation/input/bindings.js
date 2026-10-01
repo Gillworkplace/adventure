@@ -88,6 +88,10 @@ export function bindInputs(session, coordinator, renderer, prediction, assist, v
     prediction.hide();
     showNotice();
   });
+  $("#feedback-button") && ($("#feedback-button").onclick = () => {
+    prediction.hide();
+    globalThis.adventureFeedback.confirmOpen(false);
+  });
   $("#help-button").onclick = () => {
     prediction.hide();
     showHelp();

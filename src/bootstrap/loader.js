@@ -22,8 +22,10 @@
   };
   document.getElementById("boot-retry").onclick = function () { location.reload(); };
   document.getElementById("boot-diagnostics").onclick = function () {
-    if (window.adventureDiagnostics && !window.adventureDiagnostics.download())
-      document.getElementById("loading-detail").textContent = "파일을 저장하지 못했습니다. 브라우저의 다운로드 설정을 확인해 주세요.";
+    if (window.adventureDiagnostics) {
+      if (window.adventureDiagnostics.download()) window.adventureFeedback.confirmOpen(true);
+      else document.getElementById("loading-detail").textContent = "파일을 저장하지 못했습니다. 브라우저의 다운로드 설정을 확인해 주세요.";
+    }
   };
   if (!("noModule" in document.createElement("script")) || !window.Promise || !window.fetch || !window.AbortController || !window.Worker) {
     window.adventureBoot.fail("이 브라우저에서는 이전 버전을 이용할 수 있습니다.");

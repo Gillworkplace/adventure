@@ -72,7 +72,8 @@ export function showHelp() {
     spot = body.querySelector(".help-spotlight"),
     extra = body.querySelector(".help-extra"),
     arrow = body.querySelector(".help-arrow");
-  body.querySelector(".help-diagnostics").onclick = showDiagnostics;
+  body.querySelector(".help-diagnostics").onclick = () =>
+    showDiagnostics({ onSaved: () => node.close() });
   const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
   function place() {
     const target = document.querySelector(steps[index].target),

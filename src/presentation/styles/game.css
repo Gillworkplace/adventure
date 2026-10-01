@@ -111,6 +111,8 @@ button:disabled {
   align-items: center;
 }
 .position-button {
+  position: relative;
+  top: 4px;
   margin-top: 33px;
   width: 95px;
   height: 24px;

@@ -1,3 +1,5 @@
+import { CharacterProbe } from "./character.js";
+
 const WIDTH = 1234;
 const CLASSES = [1, 2, 3, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14, 16, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 29];
 const white = (r, g, b) => Math.min(r, g, b) > 205 && Math.max(r, g, b) - Math.min(r, g, b) < 48;
@@ -58,6 +60,7 @@ export class GameRecognizer {
     this.templates = templates;
     this.rows = templates.rows.map(row => ({ ...row, mask: this.inkMask(row) }));
     this.anchor = { ...templates.anchor, mask: this.inkMask(templates.anchor) };
+    this.character = new CharacterProbe(templates.characters);
   }
   inkMask(template) {
     const mask = new Uint8Array(template.width * template.height);
@@ -150,8 +153,16 @@ export class GameRecognizer {
   deck() {
     const blank = [[465, 105], [465, 250], [465, 490]].filter(([x, y]) => this.whiteAt(x, y)).length;
     const [r, g, b] = this.pixel(465, 30);
-    if (blank < 3 || r < g * 1.25 || r < b * 1.1) return { open: false, rows: [] };
+    if (blank < 3 || r < g * 1.25 || r < b * 1.1) { this.deckCache = null; return { open: false, rows: [] }; }
     const mask = this.textMask(256, 67, 221, 544, (r, g, b) => Math.max(r, g, b) < 115);
+    // Only reuse row identities when every label pixel is unchanged. Checkbox
+    // pixels are outside this mask and are always sampled from the new frame.
+    if (this.deckCache && mask.every((value, i) => value === this.deckCache.mask[i])) {
+      return { open: true, range: this.deckCache.range,
+        rows: this.deckCache.rows.map(row => ({ index: row.index, identified: true, obtained: this.deckFlag(row.y) }))
+          .filter(row => row.obtained !== null) };
+    }
+    this.deckCache = null;
     const lines = Array.from({ length: 544 }, (_, y) => { let n = 0; for (let x = 0; x < 221; x++) n += mask[y * 221 + x]; return n > 4; });
     const bands = runs(lines).filter(([a, b]) => b - a >= 8 && b - a <= 14);
     const observed = [];
@@ -166,13 +177,7 @@ export class GameRecognizer {
       }
       costs.sort((a, b) => b[1] - a[1]);
       const id = costs[0][1] > .80 && costs[0][1] - costs[1][1] > .003 ? costs[0][0] : null;
-      let orange = 0, dark = 0;
-      for (let yy = y - 3; yy < y + 12; yy++) for (let xx = 232; xx < 252; xx++) {
-        const [r, g, b] = this.pixel(xx, yy);
-        if (r > 170 && g > 95 && g < 215 && b < g * .8) orange++;
-        if (xx >= 242 && xx < 248 && yy >= y + 2 && yy < y + 8 && Math.max(r, g, b) < 100) dark++;
-      }
-      const obtained = orange >= 12 ? true : orange < 3 && dark >= 15 ? false : null;
+      const obtained = this.deckFlag(y);
       observed.push({ y, id, obtained });
     }
     if (observed.length < 3) return { open: true, rows: [] };
@@ -189,13 +194,39 @@ export class GameRecognizer {
     candidates.sort((a, b) => b.score - a.score);
     const best = candidates[0];
     if (best.matches < 3 || best.mismatches || best.score - candidates[1].score < 2) return { open: true, rows: [] };
+    // Hover/highlight colors can hide one row's black label. Its physical
+    // ordinal is still known when six or more labels establish a unique grid.
+    const trustedGrid = best.matches >= 6 && best.score - candidates[1].score >= 3;
+    const identified = row => row.id !== null || trustedGrid
+      && Math.abs((row.y - observed[0].y) / 30 - Math.round((row.y - observed[0].y) / 30)) <= 1 / 30;
+    this.deckCache = { mask,
+      range: { start: best.start, end: best.start + Math.round((observed.at(-1).y - observed[0].y) / 30) },
+      rows: observed.filter(identified).map(row => ({ y: row.y,
+        index: best.start + Math.round((row.y - observed[0].y) / 30) })).filter(row => row.index < 30) };
     return { open: true,
       range: { start: best.start, end: best.start + Math.round((observed.at(-1).y - observed[0].y) / 30) },
-      rows: observed.map(row => ({ index: best.start + Math.round((row.y - observed[0].y) / 30), obtained: row.obtained, identified: row.id !== null })).filter(row => row.index < 30 && row.identified && row.obtained !== null) };
+      rows: observed.map(row => ({ index: best.start + Math.round((row.y - observed[0].y) / 30), obtained: row.obtained, identified: identified(row) })).filter(row => row.index < 30 && row.identified && row.obtained !== null) };
   }
-  read(image) {
+  deckFlag(y) {
+    let orange = 0, dark = 0;
+    for (let yy = y - 3; yy < y + 12; yy++) for (let xx = 232; xx < 252; xx++) {
+      const [r, g, b] = this.pixel(xx, yy);
+      if (r > 170 && g > 95 && g < 215 && b < g * .8) orange++;
+      if (xx >= 242 && xx < 248 && yy >= y + 2 && yy < y + 8 && Math.max(r, g, b) < 100) dark++;
+    }
+    return orange >= 12 ? true : orange < 3 && dark >= 15 ? false : null;
+  }
+  readCore(image, { allowOverlay = false } = {}) {
     this.data = image.data;
-    if (!this.visible()) return { visible: false, issue: "covered", anchorScore: Math.round((this.lastAnchorScore || 0) * 1000) / 1000 };
+    let overlay = false;
+    if (!this.visible()) {
+      const a = this.anchor;
+      if (allowOverlay) {
+        this.lastAnchorScore = this.inkSimilarity(this.textMask(a.x, a.y, a.width, a.height, (r,g,b) => Math.min(r,g,b)>170), a.mask);
+        overlay = this.lastAnchorScore > .80;
+      }
+      if (!overlay) return { visible: false, issue: "covered", anchorScore: Math.round((this.lastAnchorScore || 0) * 1000) / 1000 };
+    }
     const position = this.number("score"), diceUsed = this.number("dice"), hand = this.hand();
     let blue = 0, yellow = 0, magenta = 0;
     for (let y = 544; y < 607; y += 7) {
@@ -212,8 +243,19 @@ export class GameRecognizer {
       }
     }
     const bonusRoll = (magenta >= 2 || blue > yellow + 5) ? true : (yellow > blue + 5) ? false : null;
-    return { visible: true, position, diceUsed, hand, bonusRoll, deck: this.deck(),
+    return { visible: true, position, diceUsed, hand, bonusRoll, overlay,
       issue: position === null ? "score" : diceUsed === null ? "dice" : hand === null ? "hand" : bonusRoll === null ? "bonus" : null,
       anchorScore: Math.round(this.lastAnchorScore * 1000) / 1000 };
+  }
+  read(image, context) {
+    const observation = this.readCore(image);
+    if (!observation.visible) return observation;
+    const deck = this.deck();
+    const profile = this.character.profile(this.data);
+    if (profile?.present) this.character.profileId = profile.id;
+    const knownId = profile?.present ? profile.id : context?.characterId;
+    const character = !deck.open && observation.position && (knownId || context?.position === observation.position)
+      ? this.character.read(this.data, observation.position, knownId, !!profile?.present) : null;
+    return { ...observation, deck, character, profile };
   }
 }

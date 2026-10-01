@@ -17,7 +17,7 @@ const comparison = model => {
   const { meanScore, relativeTime } = modelComparison[model];
   return `<span class="model-choice-metrics"><span>평균 기록 <b>약 ${Math.round(meanScore).toLocaleString("ko-KR")}점</b></span><span>추론 시간 <b>${relativeTime}</b></span></span>`;
 };
-export function showModelSelection(coordinator, { initial = false, selectedModel } = {}) {
+export function showModelSelection(coordinator, { initial = false, selectedModel, onFinish } = {}) {
   if (document.querySelector("dialog")) return;
   const resume = coordinator.suspend();
   const body = document.createElement("div");
@@ -32,7 +32,10 @@ export function showModelSelection(coordinator, { initial = false, selectedModel
     if (handedOff) return;
     coordinator.cancelModelPreparation();
     if (initial && !coordinator.enabled) confirmSkip();
-    else if (coordinator.enabled) coordinator.recalculate();
+    else {
+      if (coordinator.enabled) coordinator.recalculate();
+      onFinish?.();
+    }
   }, { once: true });
   const navigation = () => '<footer><button type="button" class="model-back">이전</button><span></span><button type="button" class="primary">다음</button></footer>';
   function refreshSupport() {
@@ -55,8 +58,12 @@ export function showModelSelection(coordinator, { initial = false, selectedModel
   async function confirmSkip() {
     const skip = await confirmAction("추천 없이 시작할까요?", "행동 추천 없이 게임을 이용합니다. 나중에 ‘모델 선택’에서 추천을 켤 수 있습니다.",
       { confirmLabel: "추천 없이 시작", cancelLabel: "모델 선택", className: "model-dialog model-skip-dialog" });
-    if (skip) { await coordinator.dispose(); document.querySelector("#settings-button").focus({ preventScroll: true }); }
-    else showModelSelection(coordinator, { initial, selectedModel: selected });
+    if (skip) {
+      await coordinator.dispose();
+      document.querySelector("#settings-button").focus({ preventScroll: true });
+      onFinish?.();
+    }
+    else showModelSelection(coordinator, { initial, selectedModel: selected, onFinish });
   }
   function select() {
     epoch++; controller?.abort(); controller = null; coordinator.cancelModelPreparation();
@@ -193,7 +200,10 @@ export function showModelSelection(coordinator, { initial = false, selectedModel
       body.innerHTML = `<div class="model-ready"><span class="model-ready-mark" aria-hidden="true">✓</span><strong>이제 다음 선택을 비교할 수 있습니다.</strong><p>${info.cacheSaved ? "이 브라우저에 저장된 모델을 다음에도 사용합니다." : "이번 접속 동안 모델을 사용할 수 있습니다."}</p></div>${info.cacheFailed ? `<p class="model-cache-warning">모델을 저장하지 못했습니다. ${localModel ? "다음 접속 때 이 PC의 파일을 다시 읽습니다." : "다음 접속 때 다시 다운로드할 수 있습니다."}</p><div class="model-support cache-support"></div>` : ""}<footer><button class="model-back">이전</button><span></span><button class="primary">${initial ? "시작" : "적용"}</button></footer>`;
       if (info.cacheFailed) { showSupport(body.querySelector(".cache-support"), info.cacheIssue || "storage-failed", { target: "모델 저장" }); toast("모델을 저장하지 못했습니다. 이번에는 사용할 수 있습니다."); }
       body.querySelector(".model-back").onclick = select;
-      body.querySelector(".primary").onclick = () => leave(() => coordinator.configure({ model: "vela" }));
+      body.querySelector(".primary").onclick = () => leave(() => {
+        coordinator.configure({ model: "vela" });
+        onFinish?.();
+      });
       focusPrimary();
     } catch (error) { if (!signal.aborted && current === epoch && node.open) failure(error, inspectVela); }
     finally { transfer?.dispose(); }
@@ -206,7 +216,7 @@ export function showModelSelection(coordinator, { initial = false, selectedModel
     try {
       await coordinator.prepare({ signal }); coordinator.checkGpu();
       if (signal.aborted || current !== epoch || !node.open) return;
-      leave(() => showSettings(coordinator, { initial, onBack: () => showModelSelection(coordinator, { initial, selectedModel: selected }), onCancel: initial && !coordinator.enabled ? confirmSkip : undefined }));
+      leave(() => showSettings(coordinator, { initial, onBack: () => showModelSelection(coordinator, { initial, selectedModel: selected, onFinish }), onCancel: initial && !coordinator.enabled ? confirmSkip : undefined, onFinish }));
     } catch (error) { if (!signal.aborted && current === epoch && node.open) failure(error, loadX36); }
   }
   function failure(error, retry) {

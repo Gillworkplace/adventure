@@ -8,6 +8,7 @@ import { BoardRenderer } from "../presentation/board/renderer.js";
 import { Prediction } from "../presentation/overlays/prediction.js";
 import { bindInputs } from "../presentation/input/bindings.js";
 import { showModelSelection } from "../presentation/overlays/models.js";
+import { showModes } from "../presentation/overlays/modes.js";
 import { isNoticeDismissed, showNotice } from "../presentation/overlays/notice.js";
 import { toast } from "../presentation/overlays/dialogs.js";
 import { notify } from "../presentation/overlays/notifications.js";
@@ -114,12 +115,16 @@ try {
   assets.changed();
   document.querySelector("#frame").inert = false;
   document.querySelector("#frame").removeAttribute("inert");
+  const selectStartupModel = () => showModelSelection(coordinator, {
+    initial: true,
+    onFinish: () => showModes(session, assist, { voice }),
+  });
   if (!isNoticeDismissed()) {
     showNotice({
-      onClose: () => showModelSelection(coordinator, { initial: true }),
+      onClose: selectStartupModel,
     });
   } else {
-    showModelSelection(coordinator, { initial: true });
+    selectStartupModel();
   }
 } catch (error) {
   diagnostics.capture(error, "boot.main");

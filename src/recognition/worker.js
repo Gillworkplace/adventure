@@ -1,5 +1,6 @@
 import { GameRecognizer, findGameRegion } from "./vision.js";
 import { RecognitionStatus } from "./status.js";
+import { CharacterProbe } from "./character.js";
 
 let recognizer, region, sourceSize, lastSearch = -Infinity;
 let searchIssue = "window";
@@ -28,14 +29,24 @@ function align(rect) {
 self.onmessage = async ({ data }) => {
   if (data.type === "init") {
     try {
+      // The optional probe must not delay screen recognition or make startup
+      // fail when its small template file cannot be fetched.
+      const optional = new AbortController(), timeout = setTimeout(() => optional.abort(), 2500);
+      const characters = fetch(new URL("../../public/recognition/characters.json", import.meta.url), { signal: optional.signal })
+        .then(response => response.ok ? response.json() : null)
+        .then(value => value?.characters)
+        .catch(() => null)
+        .finally(() => clearTimeout(timeout));
       const response = await fetch(new URL("../../public/recognition/game.json", import.meta.url));
       if (!response.ok) throw Error("Recognition templates unavailable");
-      recognizer = new GameRecognizer(await response.json());
+      const templates = await response.json();
+      recognizer = new GameRecognizer(templates);
       self.postMessage({ type: "ready" });
+      characters.then(value => { if (Array.isArray(value)) recognizer.character = new CharacterProbe(value); });
     } catch (error) { self.postMessage({ type: "error", issue: "reader", error: { message: String(error?.message || error), stack: String(error?.stack || "") } }); }
     return;
   }
-  const { bitmap, id } = data;
+  const { bitmap, id, context } = data;
   if (!bitmap) return;
   const started = performance.now();
   try {
@@ -43,7 +54,7 @@ self.onmessage = async ({ data }) => {
     const size = bitmap.width + "x" + bitmap.height;
     if (size !== sourceSize) { region = null; lastSearch = -Infinity; searchIssue = "window"; status.reset(); sourceSize = size; source.width = bitmap.width; source.height = bitmap.height; }
     input.drawImage(bitmap, 0, 0);
-    let observation = region ? recognizer.read(crop(region)) : null;
+    let observation = region ? recognizer.read(crop(region), context) : null;
     if (!observation?.visible && started - lastSearch > 1200) {
       lastSearch = started;
       searchIssue = region ? "covered" : "window";
@@ -51,7 +62,7 @@ self.onmessage = async ({ data }) => {
         const adjusted = align(candidate);
         if (!adjusted) continue;
         if (candidate.scale < .9) { searchIssue = "small"; continue; }
-        const result = recognizer.read(crop(adjusted));
+        const result = recognizer.read(crop(adjusted), context);
         if (result.visible) { region = adjusted; observation = result; break; }
       }
     }

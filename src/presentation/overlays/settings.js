@@ -6,7 +6,7 @@ const usageOptions = [
   ["medium", "보통", "균형"],
   ["high", "높음", "빠른 계산 우선"],
 ];
-export function showSettings(coordinator, { initial = false, onBack, onCancel } = {}) {
+export function showSettings(coordinator, { initial = false, onBack, onCancel, onFinish } = {}) {
   if (document.querySelector("dialog")) return;
   const resume = coordinator.suspend();
   const settings = coordinator.settings,
@@ -78,7 +78,10 @@ export function showSettings(coordinator, { initial = false, onBack, onCancel } 
     coordinator.removeEventListener("capabilities", refreshSupport);
     if (applied || returning) return;
     if (onCancel) onCancel();
-    else if (coordinator.enabled) coordinator.recalculate();
+    else {
+      if (coordinator.enabled) coordinator.recalculate();
+      onFinish?.();
+    }
   }, { once: true });
   body.onsubmit = (e) => {
     e.preventDefault();
@@ -91,6 +94,7 @@ export function showSettings(coordinator, { initial = false, onBack, onCancel } 
     };
     resume(); node.close();
     coordinator.configure(next);
+    onFinish?.();
   };
   return node;
 }

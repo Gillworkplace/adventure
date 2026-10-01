@@ -1,4 +1,5 @@
 temp/
+tests/
 node_modules/
 .cache/
 .tools/

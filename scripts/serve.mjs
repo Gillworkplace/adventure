@@ -1,9 +1,16 @@
 import http from "node:http";
 import { stat, realpath } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { createReadStream } from "node:fs";
-import { resolve, extname, sep } from "node:path";
+import { resolve, extname, sep, basename } from "node:path";
 const root = await realpath(resolve(import.meta.dirname, ".."));
-const port = Number(process.env.PORT || 4173);
+const port = Number(process.env.PORT || (basename(root).toLowerCase() === "adventure_v2" ? 4174 : 4173));
+// Local research overlay only; product src/public files and deployment stay clean.
+// The extension independently rejects every checkout except adventure_v2.
+const testExtension = resolve(root, "../adventure_vela/research/web_integration/compact100_event_20260928/server-extension.mjs");
+const handleTest = basename(root).toLowerCase() === "adventure_v2" && process.env.ADVENTURE_TEST_MODELS !== "0" && existsSync(testExtension)
+  ? await (await import(pathToFileURL(testExtension).href)).createTestHandler(root) : null;
 const mime = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -22,6 +29,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   try {
+    if (handleTest && await handleTest(req, res)) return;
     let path = decodeURIComponent(
       new URL(req.url, "http://localhost").pathname,
     );

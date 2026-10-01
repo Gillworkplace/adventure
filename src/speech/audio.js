@@ -63,7 +63,7 @@ export class VoiceAudio {
       this.element.volume = Math.min(1.0, gain);
     }
   }
-  play(url) {
+  play(url, { onStarted } = {}) {
     this.stop();
     const element = this.element;
     if (!element) throw Error("음성 설정에서 미리 듣기를 눌러주세요.");
@@ -72,10 +72,15 @@ export class VoiceAudio {
     return new Promise((resolve, reject) => {
       const finish = error => {
         if (this.finish !== finish) return;
-        this.finish = null; element.onended = element.onerror = null;
+        this.finish = null; element.onended = element.onerror = element.onplaying = null;
         if (error) reject(error); else resolve();
       };
       this.finish = finish; element.onended = () => finish();
+      element.onplaying = () => {
+        if (this.finish !== finish) return;
+        element.onplaying = null;
+        onStarted?.();
+      };
       element.onerror = () => finish(Error("음성을 재생하지 못했습니다. 음성 설정에서 다시 확인해 주세요."));
       element.play().catch(error => finish(error.name === "NotAllowedError" ? Error("브라우저가 음성을 일시 중지했습니다. 미리 듣기를 눌러주세요.") : error));
     });

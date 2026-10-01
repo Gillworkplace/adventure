@@ -26,7 +26,8 @@ export class Assist extends EventTarget {
   get snapshot() {
     return { status: this.status, issue: this.issue, connected: !!this.stream, supported: this.support.available,
       reading: this.reading, observation: this.tracker.lastObservation, region: this.region,
-      processingMs: this.processingMs, verifications: this.tracker.verifications, mismatch: this.tracker.lastMismatch };
+      processingMs: this.processingMs, frame: this.frame, history: this.history,
+      verifications: this.tracker.verifications, mismatch: this.tracker.lastMismatch };
   }
 
   publish(status, issue = null) {
@@ -45,6 +46,8 @@ export class Assist extends EventTarget {
     this.reader?.stop(); this.reader = null;
     this.tracker.reset();
     this.region = null;
+    this.frame = null;
+    this.history = null;
     this.reading = { ready: false, issue: "waiting", seen: 0 };
     this.session.observe(null);
     this.unbindStream?.();
@@ -56,8 +59,16 @@ export class Assist extends EventTarget {
     this.region = frame.region;
     this.sourceSize = { width: frame.width, height: frame.height };
     this.processingMs = Math.round(frame.elapsed || 0);
+    this.frame = { id: frame.id, captureStartedAt: frame.captureStartedAt, receivedAt: frame.receivedAt,
+      latencyMs: frame.receivedAt - frame.captureStartedAt };
+    const now = performance.now();
+    if (!Number.isFinite(frame.captureStartedAt) || frame.captureStartedAt > now || now - frame.captureStartedAt > 500) {
+      this.tracker.record(frame.observation, frame.captureStartedAt);
+      this.unreadable("stale"); this.requestFrame(now); return;
+    }
     try {
-      this.reading = this.tracker.update(frame.observation, performance.now());
+      this.reading = this.tracker.update(frame.observation, frame.captureStartedAt,
+        { sourceFrame: frame.sourceFrame ?? frame.id });
       this.session.observe(this.reading.state, this.reading);
     } catch (error) {
       diagnostics.capture(error, "assist.reading");
@@ -69,8 +80,12 @@ export class Assist extends EventTarget {
     if (key !== this.readingKey) { diagnostics.record("assist.reading", { ...this.reading, state: undefined }); this.readingKey = key; }
     this.dispatchEvent(new Event("change"));
   }
+  rememberFrame(frame) {
+    this.history = frame.history;
+    this.tracker.record(frame.observation, frame.at);
+  }
+  requestFrame(after) { this.reader?.requestFrame(after); }
   unreadable(issue) {
-    if (issue === "stale" && this.tracker.state && this.tracker.verified) this.tracker.requireDeck("gap");
     this.tracker.pendingKey = null;
     this.reading = { ...this.reading, ready: false, issue, canCorrect: false, seen: this.tracker.seen, verification: this.tracker.deckReason };
     this.session.observe(null);
@@ -129,7 +144,10 @@ export class Assist extends EventTarget {
       this.session.execute("mode", "assist");
       this.reader = this.createReader(candidate, frame => {
         if (this.stream === candidate && !track.muted && this.session.mode === "assist") this.read(frame);
-      }, issue => { if (this.stream === candidate) this.unreadable(issue); });
+      }, issue => { if (this.stream === candidate) this.unreadable(issue); },
+      () => this.tracker.verified && this.tracker.state ? { position: this.tracker.state.position,
+        characterId: this.tracker.profileId ?? this.tracker.characterAnchor?.id } : null,
+      frame => { if (this.stream === candidate && !track.muted && this.session.mode === "assist") this.rememberFrame(frame); });
       this.publish(this.restingStatus());
       return true;
     } catch (error) {

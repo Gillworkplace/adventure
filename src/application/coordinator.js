@@ -29,12 +29,14 @@ export class Coordinator extends EventTarget {
     this.velaSupport = { state: "unchecked" };
     session.addEventListener("change", (event) => {
       if (["reset", "assist-sync", "mode"].includes(event.detail?.type)) this.forecast.clear();
+      if (["reset", "mode"].includes(event.detail?.type)) this.completed = null;
       if (this.suspensions) return;
-      this.cancel();
-      if (this.enabled) this.recalculate();
+      if (this.enabled) this.recalculate({ reuse: ["assist-state", "assist-sync"].includes(event.detail?.type) });
+      else this.cancel();
     });
   }
   publish(result) {
+    if (result.requestId === this.requestId) result.startedAt = this.calculationStartedAt;
     result.forecast = !this.session.canRecommend ? {} : this.forecast.update(this.session.state, result);
     this.result = result;
     if (result.status === "complete" || result.status === "error") diagnostics.record("calculation.result", result);
@@ -42,6 +44,9 @@ export class Coordinator extends EventTarget {
   }
   get maxWorkers() {
     return workerLimit();
+  }
+  get calculationBackend() {
+    return this.settings.model === "vela" ? this.vela : this.settings.engine === "gpu" ? this.gpu : this.cpu;
   }
   get velaCacheAllowed() { return cacheAllowed(); }
   notice(message) { const event = new Event("notice"); event.message = message; this.dispatchEvent(event); }
@@ -194,17 +199,32 @@ export class Coordinator extends EventTarget {
     this.controller?.abort();
     this.publish({ status: !this.session.canRecommend ? "paused" : this.enabled ? "idle" : "disabled", model: this.settings.model, actions: [] });
   }
-  async recalculate() {
+  remember(result, state) {
+    if (this.session.mode !== "assist" || result.status !== "complete") return;
+    this.completed = { key: JSON.stringify([state, this.settings]), backend: this.calculationBackend,
+      result: { ...result } };
+  }
+  async recalculate({ reuse = false } = {}) {
     this.cancel();
     if (!this.enabled || this.suspensions || !this.session.canRecommend) return;
     const id = this.requestId,
       revision = this.session.revision,
       controller = (this.controller = new AbortController());
+    this.calculationStartedAt = performance.now();
     const p = this.settings.model === "vela" ? { model: "vela", engine: "cpu" } : profile(this.settings, {
         noEarlyStop:
           new URLSearchParams(location.search).get("noEarlyStop") === "1",
       }),
       state = this.session.state;
+    // A temporary occlusion changes readiness, not the game state. Reuse only
+    // the last completed assist result with exactly the same state/settings
+    // and model instance. Explicit recalculation still starts a fresh request.
+    if (reuse && this.session.mode === "assist" && this.completed?.backend === this.calculationBackend &&
+        this.completed.key === JSON.stringify([state, this.settings])) {
+      diagnostics.record("calculation.reuse", { requestId: id, revision, snapshot: state });
+      this.publish({ ...this.completed.result, requestId: id, revision, reused: true });
+      return;
+    }
     this.publish({
       status: "running",
       model: this.settings.model,
@@ -233,7 +253,7 @@ export class Coordinator extends EventTarget {
         }
         const result = await evaluateVela({ snapshot: state, backend: this.vela,
           signal: controller.signal, requestId: id, revision });
-        if (current()) this.publish(result);
+        if (current()) { this.remember(result, state); this.publish(result); }
         return;
       }
       const { CpuBackend, evaluate } = await this.loadX36();
@@ -257,7 +277,7 @@ export class Coordinator extends EventTarget {
           if (current()) this.publish(r);
         },
       });
-      if (current()) this.publish(result);
+      if (current()) { this.remember(result, state); this.publish(result); }
     } catch (error) {
       if (current() && error.name !== "AbortError") {
         controller.abort();
@@ -286,6 +306,7 @@ export class Coordinator extends EventTarget {
     const resume = this.suspend();
     try {
       this.forecast.clear();
+      this.completed = null;
       diagnostics.record("model.apply", settings);
       this.cancel();
       const requestId = this.requestId;
@@ -322,6 +343,7 @@ export class Coordinator extends EventTarget {
   }
   async dispose() {
     this.enabled = false;
+    this.completed = null;
     this.cancel();
     this.cpu?.dispose();
     this.cpu = null;

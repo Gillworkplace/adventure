@@ -1,5 +1,6 @@
 import { cards, tiles, FULL_DECK, RULES_VERSION } from "../rules/index.js";
 import { project } from "../environment/projection.js";
+import { resolveLanding } from "../environment/tables.js";
 
 export const cardClass = id => {
   const card = cards[id];
@@ -9,6 +10,20 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const classes = hand => hand.map(cardClass);
 const core = observation => ({ position: observation.position, diceUsed: observation.diceUsed, bonusRoll: observation.bonusRoll, hand: observation.hand });
 const keyOf = observation => JSON.stringify(core(observation));
+// A continuity heuristic, not a proof of action count or the speech frame-age
+// limit. Brief window closure is a normal way to skip movement animations.
+const MAX_OBSERVATION_GAP_MS = 5000;
+function hasObservationGap(records, after, until = Infinity) {
+  let readableAt = after;
+  for (const record of records) {
+    if (record.at <= after || record.at > until) continue;
+    if (record.at - readableAt > MAX_OBSERVATION_GAP_MS) return true;
+    // A recognized game with incomplete counters/hand still establishes screen
+    // continuity during animations; it does not establish a completed state.
+    if (record.observation.visible || record.observation.partial) readableAt = record.at;
+  }
+  return false;
+}
 const idsFor = group => cards.slice(1).filter(card => cardClass(card.id) === group).map(card => card.id);
 
 function handIds(hand, mask) {
@@ -30,6 +45,99 @@ function deckSignature(mask) {
 }
 const deckGroups = cards.slice(1).filter(card => cardClass(card.id) === card.id)
   .map(card => idsFor(card.id).reduce((mask, id) => mask | (1 << (id - 1)), 0));
+
+// Each paid roll can supply at most one subsequent free roll. Keeping a final
+// bonus reserves that free roll; card actions alone cannot increase hand size.
+const remainingRolls = (state, target) => 2 * (target.diceUsed - state.diceUsed) +
+  Number(state.bonusRoll) - Number(target.bonusRoll);
+const handReachable = (state, target) => state.diceUsed <= target.diceUsed &&
+  remainingRolls(state, target) >= 0 &&
+  target.hand.length <= Math.min(5, state.hand.length + remainingRolls(state, target));
+
+function cardReachability() {
+  const destinations = new Map(), answers = new Map();
+  const deterministic = cards.slice(1).filter(card => card.type !== 2 && cardClass(card.id) === card.id);
+  return (from, target) => {
+    if (from === target) return true;
+    const key = target + ":" + from;
+    if (answers.has(key)) return answers.get(key);
+    // Relax actual hands/decks to all deterministic cards. With no rolls and
+    // equal hand sizes, every action must draw a card. Failure even in this
+    // larger graph proves impossibility. A budget stop proves nothing.
+    const started = performance.now(), pending = [from], seen = new Set(pending);
+    for (let head = 0; head < pending.length; head++) {
+      if (head >= 64 || performance.now() - started > .75) { answers.set(key, true); return true; }
+      const position = pending[head];
+      if (!destinations.has(position)) destinations.set(position, [...new Set(deterministic.map(card =>
+        project({ position, diceUsed: 0, bonusRoll: false, hand: [card.id] }, 1).outcomes[0].score))]
+        .filter(next => tiles[next - 1].event === 2));
+      for (const next of destinations.get(position)) {
+        if (next === target) { answers.set(key, true); return true; }
+        if (!seen.has(next)) { seen.add(next); pending.push(next); }
+      }
+    }
+    for (const position of seen) answers.set(target + ":" + position, false);
+    return false;
+  };
+}
+
+// Lower bound under arbitrarily large forward moves, including forced jumps.
+// Repeated negative unit steps relax each real backward card's movement.
+const forwardFloor = new Uint16Array(tiles.length + 1);
+let landingFloor = tiles.length;
+for (let position = tiles.length; position >= 1; position--) {
+  landingFloor = Math.min(landingFloor, resolveLanding(position));
+  forwardFloor[position] = Math.min(position, landingFloor);
+}
+for (let position = 1; position <= tiles.length; position++)
+  if (forwardFloor[position] < position) forwardFloor[position] = forwardFloor[forwardFloor[position]];
+
+function retainedHandPossible(hand, target, available) {
+  for (let prefix = 0; prefix <= target.length; prefix++) {
+    let matched = 0;
+    for (const group of hand) if (matched < prefix && group === target[matched]) matched++;
+    if (matched !== prefix) continue;
+    const needed = new Map();
+    for (const group of target.slice(prefix)) needed.set(group, (needed.get(group) || 0) + 1);
+    if ([...needed].every(([group, count]) => count <= (available.get(group) || 0))) return true;
+  }
+  return false;
+}
+
+function handInventoryReachability() {
+  const decks = new Map();
+  return (state, target) => {
+    if (!decks.has(state.deckAvailable)) {
+      const counts = new Map(); let multipliers = 0, backward = 0;
+      for (const card of cards.slice(1)) if (state.deckAvailable & (1 << (card.id - 1))) {
+        const group = cardClass(card.id);
+        counts.set(group, (counts.get(group) || 0) + 1);
+        if (card.type === 2) multipliers++;
+        if (card.type === 1 && card.value < 0) backward -= card.value;
+      }
+      decks.set(state.deckAvailable, { counts, multipliers, backward });
+    }
+    const deck = decks.get(state.deckAvailable), hand = classes(state.hand);
+    const currentMultipliers = state.hand.filter(id => cards[id].type === 2).length;
+    const targetMultipliers = target.hand.filter(id => cards[id].type === 2).length;
+    // Resetting requires drawing every remaining multiplier. Each must either
+    // survive in the final hand or consume a roll when used. If a reset might
+    // fit, this inventory proof is deliberately unavailable.
+    if (currentMultipliers + deck.multipliers - targetMultipliers <= remainingRolls(state, target)) return true;
+    // Retained cards remain an ordered subsequence, before every newly drawn
+    // card. Try all splits of the final hand into retained prefix/drawn suffix.
+    if (!retainedHandPossible(hand, target.hand, deck.counts)) return false;
+    let backward = deck.backward;
+    for (let slot = 0; slot < hand.length; slot++) {
+      const card = cards[state.hand[slot]];
+      if (card.type === 1 && card.value < 0 &&
+          retainedHandPossible(hand.filter((_, index) => index !== slot), target.hand, deck.counts)) backward -= card.value;
+    }
+    let lowest = forwardFloor[state.position];
+    for (let step = 0; step < backward; step++) lowest = forwardFloor[Math.max(1, lowest - 1)];
+    return target.position >= lowest;
+  };
+}
 
 function bonusOutcomes(previous, projection, outcome) {
   if (!projection.random) return [previous.bonusRoll];
@@ -80,14 +188,15 @@ export function reconcileMultiStep(previous, observed) {
 }
 
 // Keep ambiguity visible instead of falling back to a prior accepted state.
-export function resolveTransition(previous, observed, { intermediate = null, firstActions = null, directOnly = false, exhaustive = false } = {}) {
+export function resolveTransition(previous, observed, { intermediate = null, firstActions = null, firstBonusRoll = null, directOnly = false, exhaustive = false } = {}) {
   if (exhaustive && !intermediate && !directOnly) {
-    const shallow = resolveTransition(previous, observed, { firstActions });
+    const shallow = resolveTransition(previous, observed, { firstActions, firstBonusRoll });
     if (shallow.length > 1) return shallow;
-    return exploreTransition(previous, observed, { firstActions });
+    return exploreTransition(previous, observed, { firstActions, firstBonusRoll });
   }
   const direct = intermediate ? [] : reconcileState(previous, observed)
-    .filter(candidate => !firstActions || firstActions.includes(candidate.action.slot));
+    .filter(candidate => (!firstActions || firstActions.includes(candidate.action.slot)) &&
+      (typeof firstBonusRoll !== "boolean" || candidate.state.bonusRoll === firstBonusRoll));
   if (directOnly) return direct;
   const diceDelta = observed.diceUsed - previous.diceUsed;
   if (diceDelta < 0 || diceDelta > 2) return direct;
@@ -110,6 +219,7 @@ export function resolveTransition(previous, observed, { intermediate = null, fir
       const draws = draw1 ? cards.slice(1).filter(card => previous.deckAvailable & (1 << (card.id - 1)))
         .filter((card, i, all) => all.findIndex(other => cardClass(other.id) === cardClass(card.id)) === i) : [null];
       for (const drawn of draws) for (const bonusRoll of bonusOutcomes(previous, proj1, outcome1)) {
+        if (typeof firstBonusRoll === "boolean" && bonusRoll !== firstBonusRoll) continue;
         const mask = drawn ? previous.deckAvailable & ~(1 << (drawn.id - 1)) : previous.deckAvailable;
         const midState = {
           ...previous,
@@ -135,39 +245,62 @@ export function resolveTransition(previous, observed, { intermediate = null, fir
 
 // Explore unobserved actions by state, not by an arbitrary two-action cutoff.
 // A budget stop is unresolved, even if one matching state was found so far.
-export function createRecoverySearch(previous, observed, { firstActions = null, maxStates = 4096 } = {}) {
+export function createRecoverySearch(previous, observed, { firstActions = null, firstBonusRoll = null, checkpoints = [], maxStates = 4096 } = {}) {
+  const cardReachable = cardReachability();
+  const inventoryReachable = handInventoryReachability();
   function* paths() {
-    const queue = [{ state: previous, reset: false }], seen = new Set(), matches = new Map();
+    const queue = [{ state: previous, reset: false, checkpoint: 0 }], seen = new Set(), matches = new Map();
     const signature = state => keyOf({ ...state, hand: classes(state.hand) }) + ":" + deckSignature(state.deckAvailable);
     let nodes = 0;
     if (observed.diceUsed < previous.diceUsed) return { resolved: [], exhausted: true, nodes };
-    seen.add(signature(previous));
+    seen.add("0:" + signature(previous));
     for (let head = 0; head < queue.length; head++) {
       const item = queue[head], state = item.state;
+      const required = checkpoints[item.checkpoint] ?? observed;
       if (state.diceUsed >= 100 && !state.bonusRoll) continue;
+      if (!handReachable(state, required)) continue;
+      if (!inventoryReachable(state, required)) continue;
       for (let action = 0; action <= state.hand.length; action++) {
         if (head === 0 && firstActions && !firstActions.includes(action)) continue;
+        if ((!action || cards[state.hand[action - 1]].type === 2) && remainingRolls(state, required) === 0) continue;
+        // Pruned branches also yield, so rejecting many paths cannot turn a
+        // nominally incremental search into one long synchronous task.
+        yield;
         const projection = project(state, action);
-        if (state.diceUsed + projection.diceDelta > observed.diceUsed) continue;
+        if (state.diceUsed + projection.diceDelta > required.diceUsed) continue;
         for (const outcome of projection.outcomes) {
           const hand = [...state.hand];
           if (action) hand.splice(action - 1, 1);
           const draw = tiles[outcome.score - 1].event === 2 && hand.length < 5;
+          const nextCore = { position: outcome.score, diceUsed: state.diceUsed + projection.diceDelta,
+            hand: { length: hand.length + Number(draw) } };
+          const bonuses = bonusOutcomes(state, projection, outcome).filter(bonusRoll =>
+            (head !== 0 || typeof firstBonusRoll !== "boolean" || bonusRoll === firstBonusRoll) &&
+            handReachable({ ...nextCore, bonusRoll }, required));
+          if (!bonuses.length) continue;
+          if (bonuses.every(bonusRoll => remainingRolls({ ...nextCore, bonusRoll }, required) === 0) &&
+              nextCore.hand.length === required.hand.length && !cardReachable(nextCore.position, required.position)) continue;
           const draws = draw ? cards.slice(1).filter(card => state.deckAvailable & (1 << (card.id - 1)))
             .filter((card, i, all) => all.findIndex(other => cardClass(other.id) === cardClass(card.id)) === i) : [null];
-          for (const card of draws) for (const bonusRoll of bonusOutcomes(state, projection, outcome)) {
+          for (const card of draws) for (const bonusRoll of bonuses) {
             nodes++;
             const mask = card ? state.deckAvailable & ~(1 << (card.id - 1)) : state.deckAvailable;
             const next = { ...state, position: outcome.score, diceUsed: state.diceUsed + projection.diceDelta,
               bonusRoll, hand: card ? [...hand, card.id] : hand, deckAvailable: mask || FULL_DECK };
-            const reset = item.reset || !mask, key = signature(next);
-            if (same(core(observed), { ...core(next), hand: classes(next.hand) })) {
+            if (!inventoryReachable(next, required)) { yield; continue; }
+            let checkpoint = item.checkpoint;
+            if (checkpoint < checkpoints.length && same(core(required), { ...core(next), hand: classes(next.hand) })) checkpoint++;
+            const reset = item.reset || !mask, key = checkpoint + ":" + signature(next);
+            if (checkpoint === checkpoints.length && same(core(observed), { ...core(next), hand: classes(next.hand) })) {
               matches.set(key, { state: next, reset, action: { kind: action === 0 ? "roll" : cards[state.hand[action - 1]].type === 2 ? "multiplier" : "card", slot: action, sums: outcome.sums } });
               if (matches.size > 1) return { resolved: [...matches.values()], exhausted: true, nodes };
             }
-            if (!seen.has(key)) {
+            const nextRequired = checkpoints[checkpoint] ?? observed;
+            // A non-bonus state cannot regain a bonus without another paid roll.
+            const possible = !(next.diceUsed === nextRequired.diceUsed && nextRequired.bonusRoll && !next.bonusRoll);
+            if (possible && !seen.has(key)) {
               if (seen.size >= maxStates) return { resolved: [], exhausted: false, nodes };
-              seen.add(key); queue.push({ state: next, reset });
+              seen.add(key); queue.push({ state: next, reset, checkpoint });
             }
             yield;
           }
@@ -199,14 +332,16 @@ const completeCore = observed => observed?.visible && Number.isInteger(observed.
   && observed.hand.length <= 5 && observed.hand.every(id => cards[id] && cardClass(id) === id);
 
 function startedActions(previous, observed) {
-  if (observed.position !== previous.position) return [];
+  if (observed.position !== previous.position ||
+      same(core(observed), { ...core(previous), hand: classes(previous.hand) })) return [];
   const actions = [];
   for (let action = 0; action <= previous.hand.length; action++) {
     const projection = project(previous, action), hand = [...previous.hand];
     if (observed.diceUsed !== previous.diceUsed + projection.diceDelta) continue;
     if (!projection.random && observed.bonusRoll !== previous.bonusRoll) continue;
     if (action) hand.splice(action - 1, 1);
-    if (same(observed.hand, classes(hand)) && projection.outcomes.some(outcome => outcome.score !== previous.position)) actions.push(action);
+    if (same(observed.hand, classes(hand)) && projection.outcomes.some(outcome =>
+      outcome.score !== previous.position || outcome.raw !== previous.position)) actions.push(action);
   }
   return actions;
 }
@@ -228,6 +363,7 @@ export class AssistTracker {
     this.reconciliation = null;
     this.characterAnchor = null;
     this.movingKey = null;
+    this.motion = null;
     this.observations = [];
     this.stateAt = -Infinity;
     this.actionHint = null;
@@ -251,10 +387,9 @@ export class AssistTracker {
   get seen() { return this.votes.filter(vote => vote.count >= 2).length; }
   record(observation, at) {
     if (!Number.isFinite(at) || at < (this.observations.at(-1)?.at ?? at) - 120000) return;
-    const lastComplete = this.observations.findLast(record => record.at <= at && record.observation.visible);
-    if (at > this.stateAt && at - (lastComplete?.at ?? this.stateAt) > 500) this.lost = true;
     const row = { at, observation: completeCore(observation) ? { visible: true, ...core(observation),
-      hand: [...observation.hand], overlay: !!observation.overlay } : { visible: false } };
+      hand: [...observation.hand], overlay: !!observation.overlay, dimmed: !!observation.dimmed,
+      illumination: observation.illumination ?? 1 } : { visible: false, partial: observation?.visible === true } };
     const index = this.observations.findIndex(record => record.at >= at);
     if (index < 0) this.observations.push(row);
     else if (this.observations[index].at === at) {
@@ -263,30 +398,37 @@ export class AssistTracker {
     else this.observations.splice(index, 0, row);
     const newest = this.observations.at(-1).at;
     while (this.observations.length > 1200 || newest - this.observations[0].at > 120000) this.observations.shift();
+    // Recompute after late history rereads. A single blind sample is not
+    // evidence of another action; only a sustained gap enables gap recovery.
+    this.lost = !!this.state && hasObservationGap(this.observations, this.stateAt);
   }
   intermediate(observed, at) {
-    let group = null, hint = null;
+    let group = null, hint = null, start = null, unconfirmed = false;
     const checkpoints = [];
     let anchor = this.state;
     const current = keyOf(observed);
     const consider = () => {
       if (!group || group.key === current) return;
-      if (group.observation.position === this.state.position) {
+      if (group.observation.position === anchor.position) {
         // A strongly identified dice popup can provide one start sample; the
         // final frame independently confirms its counters and remaining hand.
         if ((group.count < 2 || group.last - group.first < 50) && !group.observation.overlay) return;
-        if (group.key !== keyOf({ ...core(this.state), hand: classes(this.state.hand) })) {
+        if (anchor === this.state && group.key !== keyOf({ ...core(this.state), hand: classes(this.state.hand) })) {
           const actions = startedActions(this.state, group.observation);
-          if (actions.length && !hint) hint = actions;
+          if (actions.length && !hint) { hint = actions; start = group.observation; }
         }
         return;
       }
-      if (group.count < 2 || group.last - group.first < 50) return;
+      // An actual foreign score sample must not be ignored merely because it
+      // did not last long enough to become a confirmed checkpoint. Hand award
+      // frames at the current destination are arrival evidence, not extra moves.
+      if (group.observation.position === observed.position && group.observation.diceUsed === observed.diceUsed) return;
+      if (group.count < 2 || group.last - group.first < 50) { unconfirmed = true; return; }
       const candidates = reconcileState(anchor, group.observation);
       if (candidates.length === 1) {
         checkpoints.push({ ...group.observation, at: group.last });
         anchor = candidates[0].state;
-      }
+      } else unconfirmed = true;
     };
     for (const record of this.observations) {
       if (record.at <= this.stateAt || record.at > at) continue;
@@ -295,9 +437,9 @@ export class AssistTracker {
       if (key !== group?.key) { consider(); group = { key, observation: record.observation, first: record.at, last: record.at, count: 1 }; }
       else { group.last = record.at; group.count++; }
     }
-    consider(); return { intermediate: checkpoints.at(-1) ?? null, checkpoints, hint };
+    consider(); return { intermediate: checkpoints.at(-1) ?? null, checkpoints, hint, start, unconfirmed };
   }
-  accepted(at) { this.stateAt = at; this.actionHint = null; this.lost = false; }
+  accepted(at) { this.stateAt = at; this.actionHint = null; this.lost = false; this.motion = null; }
   rememberCharacter(observed) {
     if (this.characterAnchor?.position !== this.state.position) this.characterAnchor = null;
     if (observed.character?.present && !observed.deck?.open)
@@ -385,6 +527,25 @@ export class AssistTracker {
     if (key !== this.pendingKey) { this.pendingKey = key; this.pendingSince = at; this.pendingCount = 1; }
     else this.pendingCount++;
     if (!this.verified) this.collectDeck(observed, key, at, sourceFrame);
+    const unchanged = this.verified && same(core(observed), { ...core(this.state), hand: classes(this.state.hand) });
+    // Old score with consumed dice/cards is an action prelude, including when
+    // another window hides the board. A legal two-action explanation alone
+    // cannot turn it into an arrived state. Observed departure and return permit genuine
+    // same-square returns; clamped actions with no possible movement bypass it.
+    const absent = observed.character?.present === false && Number.isFinite(observed.character.score) &&
+      observed.character.score <= .26;
+    const unknown = !observed.character || typeof observed.character.present !== "boolean" ||
+      observed.character.present === false && !absent;
+    const prelude = this.verified && !unchanged && actionStartsHere(this.state, observed);
+    if (prelude) {
+      if (this.motion?.key !== key) this.motion = { key, departed: 0, returned: 0, at: -Infinity, frame: null };
+      if (at - this.motion.at >= 40 && sourceFrame !== this.motion.frame) {
+        if (absent) { this.motion.departed++; this.motion.returned = 0; }
+        else if (observed.character?.present && this.motion.departed >= 2) this.motion.returned++;
+        else if (observed.character?.present) this.motion.departed = 0;
+        this.motion.at = at; this.motion.frame = sourceFrame;
+      }
+    }
     if (this.pendingCount < 2 || at - this.pendingSince < 200) return this.result("settling");
     const fresh = observed.position === 1 && observed.diceUsed === 0 && !observed.bonusRoll && observed.hand.length === 0;
     if (fresh && this.deckReason !== "manual" && (!this.verified || !same(core(observed), core(this.state)))) {
@@ -410,23 +571,14 @@ export class AssistTracker {
       this.rememberCharacter(observed);
       return this.result(null, { state: this.state, synchronized: true, deckOpen: !!observed.deck?.open });
     }
-    const unchanged = same(core(observed), { ...core(this.state), hand: classes(this.state.hand) });
-    // Old score with consumed dice/cards is an action prelude, including when
-    // another window hides the board. A legal two-action explanation alone
-    // cannot turn it into an arrived state. Positive presence permits genuine
-    // same-square returns; clamped actions with no possible movement bypass it.
-    const absent = observed.character?.present === false && Number.isFinite(observed.character.score) &&
-      observed.character.score <= .26;
-    const unknown = !observed.character || typeof observed.character.present !== "boolean" ||
-      observed.character.present === false && !absent;
-    if (!unchanged && actionStartsHere(this.state, observed) &&
-        (absent || unknown && !this.manual)) {
+    if (prelude && (absent || unknown && !this.manual ||
+        observed.character?.present && this.motion.returned < 2 && !this.manual)) {
       this.movingKey = key;
       this.actionHint ||= startedActions(this.state, observed);
       // Unknown sprite evidence is neither presence nor a movement veto.
       // A core that is also a legal same-square return is genuinely ambiguous:
       // never authorize a prelude, but do not wait forever on an optional probe.
-      if (unknown && reconcileState(this.state, observed).length && at - this.pendingSince >= 4500) {
+      if (!absent && reconcileState(this.state, observed).length && at - this.pendingSince >= 4500) {
         this.requireDeck("gap");
         this.collectDeck(observed, key, at, sourceFrame);
         return this.result(this.deckIssue(observed.deck));
@@ -442,24 +594,31 @@ export class AssistTracker {
     }
     const evidence = this.intermediate(observed, at), intermediate = evidence.intermediate;
     this.actionHint ||= evidence.hint;
-    let gapAfterCheckpoint = false, priorAt = intermediate?.at;
-    if (intermediate) for (const record of this.observations) {
-      if (record.at <= intermediate.at || record.at > at) continue;
-      if (!record.observation.visible || record.at - priorAt > 500) gapAfterCheckpoint = true;
-      priorAt = record.at;
-    }
-    const evidenceKey = JSON.stringify([evidence.checkpoints, this.actionHint, this.lost, gapAfterCheckpoint]);
+    const gapAfterCheckpoint = !!intermediate && hasObservationGap(this.observations, intermediate.at, at);
+    const evidenceKey = JSON.stringify([evidence.checkpoints, evidence.start, this.actionHint, this.lost, gapAfterCheckpoint, evidence.unconfirmed]);
     if (this.reconciliation?.state !== this.state || this.reconciliation.key !== key || this.reconciliation.evidenceKey !== evidenceKey) {
       const candidates = reconcileState(this.state, observed);
       let anchor = this.state, reset = false;
-      for (const checkpoint of evidence.checkpoints) {
+      // A later visible checkpoint does not erase uncertainty before it.
+      // Across a real blind interval, keep every compatible prefix deck and
+      // constrain the search by the ordered positive observations instead.
+      const uncertainPrefix = this.lost || evidence.unconfirmed;
+      for (const checkpoint of uncertainPrefix ? [] : evidence.checkpoints) {
         const step = reconcileState(anchor, checkpoint)[0];
         anchor = step.state; reset ||= step.reset;
       }
-      const directOnly = intermediate ? !gapAfterCheckpoint : !this.lost && !!this.actionHint;
-      const options = { firstActions: intermediate ? null : this.actionHint, directOnly };
-      let resolved = resolveTransition(anchor, observed, options), search = null;
-      if (!directOnly && resolved.length < 2) {
+      // Prefer a compatible single action in an ordinary continuous session,
+      // including a brief animation skip with no captured action prelude.
+      // Actual foreign-state evidence or a long gap still broadens recovery.
+      const directOnly = !uncertainPrefix && !gapAfterCheckpoint;
+      const options = { firstActions: !intermediate || uncertainPrefix ? this.actionHint : null,
+        firstBonusRoll: !intermediate || uncertainPrefix ? evidence.start?.bonusRoll : null, directOnly,
+        checkpoints: uncertainPrefix ? evidence.checkpoints : [] };
+      // Start with single-action candidates. Do not enumerate every two-action
+      // draw combination before the constrained recovery has applied bounds.
+      let resolved = uncertainPrefix && intermediate ? [] :
+        resolveTransition(anchor, observed, { ...options, directOnly: true }), search = null;
+      if (resolved.length < 2 && (!directOnly || resolved.length === 0)) {
         search = createRecoverySearch(anchor, observed, options);
         resolved = search.advance().resolved;
       }

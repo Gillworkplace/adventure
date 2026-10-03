@@ -3,6 +3,8 @@ import { CharacterProbe } from "./character.js";
 const WIDTH = 1234;
 const CLASSES = [1, 2, 3, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14, 16, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 29];
 const white = (r, g, b) => Math.min(r, g, b) > 205 && Math.max(r, g, b) - Math.min(r, g, b) < 48;
+const WHITE_POINTS = [[70, 7], [130, 7], [8, 50], [200, 100], [80, 278], [130, 278]];
+const CORE_REGIONS = [[74, 55, 51, 21], [420, 638, 220, 42], [16, 540, 176, 70], [128, 659, 35, 27]];
 
 export function findGameRegion({ data, width, height }) {
   const mask = new Uint8Array(width * height), queue = new Int32Array(width * height);
@@ -86,10 +88,38 @@ export class GameRecognizer {
     return this.inkSimilarity(mask, this.anchor.mask);
   }
   visible() {
-    if ([[70, 7], [130, 7], [8, 50], [200, 100], [80, 278], [130, 278]].filter(([x, y]) => this.whiteAt(x, y)).length < 3) return false;
+    if (WHITE_POINTS.filter(([x, y]) => this.whiteAt(x, y)).length < 3) return false;
     const a = this.anchor;
     const mask = this.textMask(a.x, a.y, a.width, a.height, (r, g, b) => Math.min(r, g, b) > 170);
     this.lastAnchorScore = this.inkSimilarity(mask, a.mask); return this.lastAnchorScore > .62;
+  }
+  dimmingGain() {
+    const samples = WHITE_POINTS.map(([x, y]) => Array.from(this.pixel(x, y)))
+      .filter(rgb => Math.max(...rgb) - Math.min(...rgb) < 30 && Math.min(...rgb) >= 32);
+    if (samples.length < 4) return null;
+    const levels = samples.map(rgb => Math.max(...rgb)).sort((a, b) => a - b);
+    const level = levels[Math.floor(levels.length / 2)], gain = 255 / level;
+    // A coherent dimming layer preserves the UI colors and geometry. Do not
+    // brighten arbitrary covered windows, colored overlays, or near-black UI.
+    if (gain < 1.06 || gain > 7.5 || levels.filter(value => Math.abs(value - level) < Math.max(7, level * .12)).length < 4) return null;
+    return gain;
+  }
+  brightenCore(image, gain, retained) {
+    this.corePixels ||= new Uint8ClampedArray(WIDTH * 694 * 4);
+    const source = image.data, target = this.corePixels;
+    const regions = retained ? CORE_REGIONS : [...CORE_REGIONS,
+      [this.anchor.x, this.anchor.y, this.anchor.width, this.anchor.height]];
+    for (const [x, y, width, height] of regions) for (let yy = y; yy < y + height; yy++) {
+      for (let i = (yy * WIDTH + x) * 4, end = i + width * 4; i < end; i += 4) {
+        target[i] = source[i] * gain; target[i + 1] = source[i + 1] * gain;
+        target[i + 2] = source[i + 2] * gain; target[i + 3] = source[i + 3];
+      }
+    }
+    if (!retained) for (const [x, y] of WHITE_POINTS) {
+      const i = (y * WIDTH + x) * 4;
+      for (let channel = 0; channel < 4; channel++) target[i + channel] = channel === 3 ? source[i + channel] : source[i + channel] * gain;
+    }
+    this.data = target;
   }
   number(kind) {
     const [x, y, w, h] = kind === "score" ? [74, 55, 51, 21] : [131, 662, 28, 21];
@@ -216,16 +246,41 @@ export class GameRecognizer {
     }
     return orange >= 12 ? true : orange < 3 && dark >= 15 ? false : null;
   }
-  readCore(image, { allowOverlay = false, retained = false } = {}) {
+  readCore(image, { allowOverlay = false, retained = false, illumination = 1 } = {}) {
     this.data = image.data;
-    let overlay = false;
-    if (!retained && !this.visible()) {
+    this.lastAnchorScore = 0;
+    let overlay = false, dimmed = false;
+    if (retained && Number.isFinite(illumination) && illumination >= 1.06 && illumination <= 7.5) {
+      this.brightenCore(image, illumination, true); dimmed = true;
+    }
+    const visible = retained || this.visible();
+    if (!retained && visible) {
+      // A light fade can pass the white-pixel gate while already changing card
+      // colors. Normalize coherent fades too, with the same stricter UI check.
+      const gain = this.dimmingGain(), score = this.lastAnchorScore;
+      if (gain) {
+        this.brightenCore(image, gain, false);
+        if (this.visible() && this.lastAnchorScore > .80) { illumination = gain; dimmed = true; }
+        else { this.data = image.data; this.lastAnchorScore = score; }
+      }
+    }
+    if (!retained && !visible) {
       const a = this.anchor;
       if (allowOverlay) {
         this.lastAnchorScore = this.inkSimilarity(this.textMask(a.x, a.y, a.width, a.height, (r,g,b) => Math.min(r,g,b)>170), a.mask);
         overlay = this.lastAnchorScore > .80;
       }
-      if (!overlay) return { visible: false, issue: "covered", anchorScore: Math.round((this.lastAnchorScore || 0) * 1000) / 1000 };
+      if (!overlay) {
+        const gain = this.dimmingGain();
+        if (gain) {
+          this.brightenCore(image, gain, false);
+          if (this.visible() && this.lastAnchorScore > .80) { illumination = gain; dimmed = true; }
+        }
+        if (!dimmed) {
+          this.data = image.data;
+          return { visible: false, issue: "covered", anchorScore: Math.round((this.lastAnchorScore || 0) * 1000) / 1000 };
+        }
+      }
     }
     const position = this.number("score"), diceUsed = this.number("dice"), hand = this.hand();
     let blue = 0, yellow = 0, magenta = 0;
@@ -243,20 +298,23 @@ export class GameRecognizer {
       }
     }
     const bonusRoll = (magenta >= 2 || blue > yellow + 5) ? true : (yellow > blue + 5) ? false : null;
-    return { visible: true, position, diceUsed, hand, bonusRoll, overlay,
+    return { visible: true, position, diceUsed, hand, bonusRoll, overlay, dimmed, illumination: dimmed ? illumination : 1,
       issue: position === null ? "score" : diceUsed === null ? "dice" : hand === null ? "hand" : bonusRoll === null ? "bonus" : null,
       anchorScore: Math.round(this.lastAnchorScore * 1000) / 1000 };
   }
   read(image, context) {
     const observation = this.readCore(image);
     if (!observation.visible) return observation;
+    // Dimming correction is restricted to core ROIs. Deck flags still use
+    // original pixels; optional avatar evidence is unavailable behind a modal.
+    this.data = image.data;
     const deck = this.deck();
     let profile = null, character = null, helperIssue = null;
     try {
-      profile = this.character.profile(this.data);
+      profile = observation.dimmed ? null : this.character.profile(this.data);
       if (profile?.present) this.character.profileId = profile.id;
       const knownId = profile?.present ? profile.id : context?.characterId;
-      character = !deck.open && observation.position && (knownId || context?.position === observation.position)
+      character = !observation.dimmed && !deck.open && observation.position && (knownId || context?.position === observation.position)
         ? this.character.read(this.data, observation.position, knownId, !!profile?.present) : null;
     } catch {
       // Optional sprite evidence must never discard a valid core/deck reading.

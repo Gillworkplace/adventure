@@ -10,7 +10,7 @@ export class FrameHistory {
   constructor({ maxBytes = 32 * 1024 * 1024, maxAgeMs = 30000 } = {}) {
     this.maxBytes = maxBytes; this.maxAgeMs = maxAgeMs; this.clear();
   }
-  clear() { this.frames = []; this.bytes = 0; }
+  clear() { this.frames = []; this.bytes = 0; this.replayImage = null; }
   prune(at) {
     while (this.frames.length && (this.bytes > this.maxBytes || at - this.frames[0].at > this.maxAgeMs)) this.bytes -= this.frames.shift().bytes;
   }
@@ -36,22 +36,25 @@ export class FrameHistory {
   }
   replay(recognizer, after, before, { maxMs = 8 } = {}) {
     const started = performance.now(), rows = [];
-    let reread = 0;
+    let reread = 0, pending = false;
     for (const frame of this.frames) {
       if (frame.at <= after || frame.at > before || !frame.observation?.visible) continue;
-      let observation = frame.observation;
-      if (observation.issue && performance.now() - started < maxMs) {
-        const image = { width: 1234, height: 694, data: new Uint8ClampedArray(1234 * 694 * 4) };
+      let observation = frame.replayed ?? frame.observation;
+      if (observation.issue && !frame.replayed && performance.now() - started < maxMs) {
+        const image = this.replayImage ||= { width: 1234, height: 694, data: new Uint8ClampedArray(1234 * 694 * 4) };
         for (const part of frame.parts) for (let y = 0; y < part.height; y++) {
           image.data.set(part.pixels.subarray(y * part.width * 4, (y + 1) * part.width * 4),
             ((part.y + y) * image.width + part.x) * 4);
         }
-        observation = { ...recognizer.readCore(image, { retained: true }), overlay: !!frame.observation.overlay };
+        observation = { ...recognizer.readCore(image, { retained: true,
+          illumination: frame.observation.illumination }), overlay: !!frame.observation.overlay };
+        frame.replayed = observation;
         reread++;
       }
+      else if (observation.issue && !frame.replayed) pending = true;
       rows.push({ at: frame.at, observation });
     }
     // Only parsed values leave this worker; the retained pixels stay private.
-    return { rows, reread };
+    return { rows, reread, pending };
   }
 }

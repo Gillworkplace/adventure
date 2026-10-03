@@ -91,6 +91,7 @@ export class Assist extends EventTarget {
     if (frame.type === "replay") {
       if (frame.after !== this.tracker.stateAt) return;
       for (const row of frame.rows || []) this.tracker.record(row.observation, row.at);
+      if (frame.pending) this.historyReplayKey = null;
       this.requestFrame(performance.now());
       return;
     }

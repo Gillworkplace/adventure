@@ -48,6 +48,18 @@ export class GameView {
     }
   }
   render(session, result) {
+    // Keep prior values for display while assist is observing an action. The
+    // coordinator/voice still receive only the actual current result.
+    const stateKey = JSON.stringify(session.state);
+    if (session.mode !== "assist" || result.status === "disabled" ||
+        this.assistDisplay?.stateKey !== stateKey || this.assistDisplay?.result.model !== result.model)
+      this.assistDisplay = null;
+    if (session.mode === "assist" && session.canRecommend && result.status === "complete" &&
+        result.revision === session.revision)
+      this.assistDisplay = { stateKey, result };
+    const holding = session.mode === "assist" && !session.canRecommend &&
+      result.status === "paused" && !!this.assistDisplay;
+    if (holding) result = this.assistDisplay.result;
     const s = session.state,
       t = tiles[s.position - 1],
       automatic = session.mode === "automatic",
@@ -76,6 +88,7 @@ export class GameView {
     const forecast = result.forecast || {};
     text("forecast-label", forecast.terminal ? "최종 점수" : "예상 최종 점수");
     text("forecast-value", Number.isFinite(forecast.value) ? number(forecast.value, 0) + "점" : forecast.pending ? "계산 중…" : "—");
+    document.getElementById("forecast-value").title = holding ? "직전 확정 상태의 예상 점수입니다." : "";
     text("forecast-delta", forecast.delta ? `(${forecast.delta > 0 ? "+" : ""}${number(forecast.delta, 0)})` : "");
     document.querySelector("#forecast-delta").dataset.direction = forecast.delta > 0 ? "up" : "down";
     overview.querySelector(".legend").append(document.createElement("br"), document.createTextNode(vela
@@ -144,7 +157,7 @@ export class GameView {
       const available = a === 0 || a <= s.hand.length,
         r = result.actions?.[a],
         score = vela ? r?.value : r?.mean;
-      let value = disabled || !session.canRecommend ? "—" : !available
+      let value = disabled || !session.canRecommend && !holding ? "—" : !available
         ? (vela ? "—" : "0.000점")
         : result.status === "error"
           ? "오류"
@@ -154,16 +167,19 @@ export class GameView {
               ? "계산중..."
               : "—";
       b.textContent = (a ? `${a}번카드` : "주사위") + ": " + value;
-      b.classList.toggle("is-near", !!r?.near || (vela && result.recommended?.includes(a)));
+      b.title = holding ? "직전 확정 상태의 평가값입니다." : "";
+      b.classList.toggle("is-near", session.canRecommend && (!!r?.near || (vela && result.recommended?.includes(a))));
       b.setAttribute("aria-label", `${b.textContent}, ${disabled ? "모델 선택" : "다시 계산"}`);
       const row = this.tableRows[a],
-        recommended = result.recommended?.includes(a),
-        near = r?.near && !recommended;
+        recommended = session.canRecommend && result.recommended?.includes(a),
+        near = session.canRecommend && r?.near && !recommended;
       row.className = recommended ? "recommended" : near ? "near" : "";
       row.dataset.available = String(available);
       const center = vela ? r?.value : result.profile?.engine === "cpu" ? r?.median : r?.mean;
       const status = !available
         ? "비어 있음"
+        : holding
+          ? "이전 값"
         : result.status === "error"
           ? "오류"
           : recommended

@@ -91,7 +91,7 @@ export class AssistVoice extends EventTarget {
     clearTimeout(this.timer); this.timer = null;
     this.playback?.abort(); this.playback = null;
     if (this.speaking) diagnostics.record("voice.stop");
-    this.audio.stop(); this.speaking = false; this.starting = false; this.desired = null; this.previewing = false; this.speakingNotice = false;
+    this.audio.stop(); this.speaking = false; this.starting = false; this.cueStarted = false; this.desired = null; this.previewing = false; this.speakingNotice = false;
   }
   cancelPreparation() {
     this.epoch++; this.preparation?.abort(); this.preparation = null;
@@ -211,6 +211,16 @@ export class AssistVoice extends EventTarget {
       }
     }
     const cue = this.cue();
+    // A queued/buffering acknowledgement can be replaced by a recommendation.
+    // Once audible, finish the whole acknowledgement; recompute the latest
+    // cue on completion instead of retaining a potentially obsolete action.
+    if (this.playback && this.cueStarted && this.desired?.clip === "deck-ready" &&
+        this.session.mode === "assist" && this.assist.stream &&
+        this.desired.key.startsWith("deck-ready:" + this.assist.epoch + ":") &&
+        this.isCueEnabled("deck-ready") && cue?.clip !== "disconnected") {
+      if (cue?.key.startsWith("action:") && !this.freshAction(cue)) this.requestActionFrame(cue);
+      return;
+    }
     if (this.desired?.clip === "deck-ready" && cue?.key.startsWith("action:") && !this.freshAction(cue)) {
       this.requestActionFrame(cue);
       return;
@@ -264,13 +274,19 @@ export class AssistVoice extends EventTarget {
     if (action && !this.freshAction(cue)) { this.requestActionFrame(cue); return; }
     const controller = this.playback = new AbortController();
     try {
+      this.cueStarted = false;
       this.starting = action; this.speaking = !action; this.publish();
       diagnostics.record("voice.speak", { clip: cue.clip, delay: cue.delay, key: cue.key,
         requestId: cue.requestId, revision: cue.revision, frame: this.assist.frame });
       await this.audio.play(this.pack.url(cue.clip), { onStarted: () => {
         if (this.playback !== controller || controller.signal.aborted) return;
         if (action && !this.freshAction(cue)) { this.stop(); this.sync(); return; }
+        // Once the popup notice is audible, repeat the recommendation when
+        // the game is validated again, even if this notice is interrupted.
+        // A notice cancelled before playback must not reset action deduplication.
+        if (cue.clip === "covered" && this.delivered?.startsWith("action:")) this.delivered = null;
         if (action) this.deckVerifying = false;
+        this.cueStarted = true;
         this.starting = false; this.speaking = true; this.publish();
         diagnostics.record("voice.started", { clip: cue.clip, key: cue.key, requestId: cue.requestId,
           revision: cue.revision, frame: this.assist.frame });
@@ -288,7 +304,7 @@ export class AssistVoice extends EventTarget {
         diagnostics.record("voice.aborted", { clip: cue.clip });
       }
     }
-    finally { if (this.playback === controller) { this.playback = null; this.speaking = false; this.starting = false; this.publish(); this.sync(); } }
+    finally { if (this.playback === controller) { this.playback = null; this.speaking = false; this.starting = false; this.cueStarted = false; this.publish(); this.sync(); } }
   }
   async preview() {
     if (!this.enabled || !this.available || this.preparing) return;

@@ -216,10 +216,10 @@ export class GameRecognizer {
     }
     return orange >= 12 ? true : orange < 3 && dark >= 15 ? false : null;
   }
-  readCore(image, { allowOverlay = false } = {}) {
+  readCore(image, { allowOverlay = false, retained = false } = {}) {
     this.data = image.data;
     let overlay = false;
-    if (!this.visible()) {
+    if (!retained && !this.visible()) {
       const a = this.anchor;
       if (allowOverlay) {
         this.lastAnchorScore = this.inkSimilarity(this.textMask(a.x, a.y, a.width, a.height, (r,g,b) => Math.min(r,g,b)>170), a.mask);
@@ -251,11 +251,18 @@ export class GameRecognizer {
     const observation = this.readCore(image);
     if (!observation.visible) return observation;
     const deck = this.deck();
-    const profile = this.character.profile(this.data);
-    if (profile?.present) this.character.profileId = profile.id;
-    const knownId = profile?.present ? profile.id : context?.characterId;
-    const character = !deck.open && observation.position && (knownId || context?.position === observation.position)
-      ? this.character.read(this.data, observation.position, knownId, !!profile?.present) : null;
-    return { ...observation, deck, character, profile };
+    let profile = null, character = null, helperIssue = null;
+    try {
+      profile = this.character.profile(this.data);
+      if (profile?.present) this.character.profileId = profile.id;
+      const knownId = profile?.present ? profile.id : context?.characterId;
+      character = !deck.open && observation.position && (knownId || context?.position === observation.position)
+        ? this.character.read(this.data, observation.position, knownId, !!profile?.present) : null;
+    } catch {
+      // Optional sprite evidence must never discard a valid core/deck reading.
+      helperIssue = "character";
+      profile = character = null;
+    }
+    return { ...observation, deck, character, profile, helperIssue };
   }
 }

@@ -64,6 +64,7 @@ export class ScreenReader {
     this.urgent = true;
     if (!this.busy) this.schedule(0);
   }
+  replayHistory(after, before) { return this.recorder?.replay(after, before) ?? false; }
   failed(reason = "reader") { if (!this.stopped) { diagnostics.record("screen.reader.fail", { reason }); this.stop(); this.fail("reader"); } }
   async tick() {
     if (this.stopped) return;

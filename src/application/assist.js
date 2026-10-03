@@ -48,6 +48,7 @@ export class Assist extends EventTarget {
     this.region = null;
     this.frame = null;
     this.history = null;
+    this.historyReplayKey = null;
     this.reading = { ready: false, issue: "waiting", seen: 0 };
     this.session.observe(null);
     this.unbindStream?.();
@@ -70,6 +71,12 @@ export class Assist extends EventTarget {
       this.reading = this.tracker.update(frame.observation, frame.captureStartedAt,
         { sourceFrame: frame.sourceFrame ?? frame.id });
       this.session.observe(this.reading.state, this.reading);
+      if (!this.reading.ready && this.reading.issue === "settling" && !this.reading.moving &&
+          this.tracker.pendingCount >= 2 && this.tracker.reconciliation) {
+        const key = JSON.stringify([this.tracker.stateAt, this.tracker.pendingKey]);
+        if (key !== this.historyReplayKey && this.reader?.replayHistory(this.tracker.stateAt, frame.captureStartedAt))
+          this.historyReplayKey = key;
+      }
     } catch (error) {
       diagnostics.capture(error, "assist.reading");
       this.reader?.stop();
@@ -81,6 +88,12 @@ export class Assist extends EventTarget {
     this.dispatchEvent(new Event("change"));
   }
   rememberFrame(frame) {
+    if (frame.type === "replay") {
+      if (frame.after !== this.tracker.stateAt) return;
+      for (const row of frame.rows || []) this.tracker.record(row.observation, row.at);
+      this.requestFrame(performance.now());
+      return;
+    }
     this.history = frame.history;
     this.tracker.record(frame.observation, frame.at);
   }

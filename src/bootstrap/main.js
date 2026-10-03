@@ -117,7 +117,7 @@ try {
   document.querySelector("#frame").removeAttribute("inert");
   const selectStartupModel = () => showModelSelection(coordinator, {
     initial: true,
-    onFinish: () => showModes(session, assist, { voice }),
+    onFinish: result => { if (!result?.skipped) showModes(session, assist, { voice }); },
   });
   if (!isNoticeDismissed()) {
     showNotice({

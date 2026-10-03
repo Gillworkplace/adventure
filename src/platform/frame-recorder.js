@@ -8,6 +8,9 @@ export class FrameRecorder {
       if (this.stopped) return;
       if (data.type === "ready") { this.ready = true; this.schedule(0); }
       else if (data.type === "disabled") this.stop();
+      else if (data.type === "replay") {
+        if (data.token === this.replayToken && JSON.stringify(data.region) === JSON.stringify(this.region())) this.receive(data);
+      }
       else if (data.type === "frame" && data.id === this.id) {
         clearTimeout(this.watchdog);
         this.busy = false;
@@ -20,6 +23,12 @@ export class FrameRecorder {
     this.worker.postMessage({ type: "init" });
   }
   schedule(delay) { clearTimeout(this.timer); if (!this.stopped) this.timer = setTimeout(() => this.tick(), delay); }
+  replay(after, before) {
+    if (this.stopped || !this.ready) return false;
+    this.worker.postMessage({ type: "replay", token: this.replayToken = (this.replayToken || 0) + 1,
+      after, before, region: this.region() });
+    return true;
+  }
   async tick() {
     if (this.stopped || this.busy) return;
     const region = this.region();

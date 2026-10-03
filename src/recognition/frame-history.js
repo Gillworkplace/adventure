@@ -34,4 +34,24 @@ export class FrameHistory {
     return { frames: this.frames.length, bytes: this.bytes, maxBytes: this.maxBytes,
       retainedMs: this.frames.length ? this.frames.at(-1).at - this.frames[0].at : 0 };
   }
+  replay(recognizer, after, before, { maxMs = 8 } = {}) {
+    const started = performance.now(), rows = [];
+    let reread = 0;
+    for (const frame of this.frames) {
+      if (frame.at <= after || frame.at > before || !frame.observation?.visible) continue;
+      let observation = frame.observation;
+      if (observation.issue && performance.now() - started < maxMs) {
+        const image = { width: 1234, height: 694, data: new Uint8ClampedArray(1234 * 694 * 4) };
+        for (const part of frame.parts) for (let y = 0; y < part.height; y++) {
+          image.data.set(part.pixels.subarray(y * part.width * 4, (y + 1) * part.width * 4),
+            ((part.y + y) * image.width + part.x) * 4);
+        }
+        observation = { ...recognizer.readCore(image, { retained: true }), overlay: !!frame.observation.overlay };
+        reread++;
+      }
+      rows.push({ at: frame.at, observation });
+    }
+    // Only parsed values leave this worker; the retained pixels stay private.
+    return { rows, reread };
+  }
 }

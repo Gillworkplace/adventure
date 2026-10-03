@@ -61,7 +61,7 @@ export function showModelSelection(coordinator, { initial = false, selectedModel
     if (skip) {
       await coordinator.dispose();
       document.querySelector("#settings-button").focus({ preventScroll: true });
-      onFinish?.();
+      onFinish?.({ skipped: true });
     }
     else showModelSelection(coordinator, { initial, selectedModel: selected, onFinish });
   }

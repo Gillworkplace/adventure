@@ -22,8 +22,14 @@ function handIds(hand, mask) {
 }
 
 function deckSignature(mask) {
-  return cards.slice(1).filter(card => cardClass(card.id) === card.id).map(card => idsFor(card.id).filter(id => mask & (1 << (id - 1))).length).join(",");
+  return deckGroups.map(bits => {
+    let value = bits & mask, count = 0;
+    while (value) { value &= value - 1; count++; }
+    return count;
+  }).join(",");
 }
+const deckGroups = cards.slice(1).filter(card => cardClass(card.id) === card.id)
+  .map(card => idsFor(card.id).reduce((mask, id) => mask | (1 << (id - 1)), 0));
 
 function bonusOutcomes(previous, projection, outcome) {
   if (!projection.random) return [previous.bonusRoll];
@@ -74,7 +80,12 @@ export function reconcileMultiStep(previous, observed) {
 }
 
 // Keep ambiguity visible instead of falling back to a prior accepted state.
-export function resolveTransition(previous, observed, { intermediate = null, firstActions = null, directOnly = false } = {}) {
+export function resolveTransition(previous, observed, { intermediate = null, firstActions = null, directOnly = false, exhaustive = false } = {}) {
+  if (exhaustive && !intermediate && !directOnly) {
+    const shallow = resolveTransition(previous, observed, { firstActions });
+    if (shallow.length > 1) return shallow;
+    return exploreTransition(previous, observed, { firstActions });
+  }
   const direct = intermediate ? [] : reconcileState(previous, observed)
     .filter(candidate => !firstActions || firstActions.includes(candidate.action.slot));
   if (directOnly) return direct;
@@ -120,6 +131,66 @@ export function resolveTransition(previous, observed, { intermediate = null, fir
     }
   }
   return [...unique.values()];
+}
+
+// Explore unobserved actions by state, not by an arbitrary two-action cutoff.
+// A budget stop is unresolved, even if one matching state was found so far.
+export function createRecoverySearch(previous, observed, { firstActions = null, maxStates = 4096 } = {}) {
+  function* paths() {
+    const queue = [{ state: previous, reset: false }], seen = new Set(), matches = new Map();
+    const signature = state => keyOf({ ...state, hand: classes(state.hand) }) + ":" + deckSignature(state.deckAvailable);
+    let nodes = 0;
+    if (observed.diceUsed < previous.diceUsed) return { resolved: [], exhausted: true, nodes };
+    seen.add(signature(previous));
+    for (let head = 0; head < queue.length; head++) {
+      const item = queue[head], state = item.state;
+      if (state.diceUsed >= 100 && !state.bonusRoll) continue;
+      for (let action = 0; action <= state.hand.length; action++) {
+        if (head === 0 && firstActions && !firstActions.includes(action)) continue;
+        const projection = project(state, action);
+        if (state.diceUsed + projection.diceDelta > observed.diceUsed) continue;
+        for (const outcome of projection.outcomes) {
+          const hand = [...state.hand];
+          if (action) hand.splice(action - 1, 1);
+          const draw = tiles[outcome.score - 1].event === 2 && hand.length < 5;
+          const draws = draw ? cards.slice(1).filter(card => state.deckAvailable & (1 << (card.id - 1)))
+            .filter((card, i, all) => all.findIndex(other => cardClass(other.id) === cardClass(card.id)) === i) : [null];
+          for (const card of draws) for (const bonusRoll of bonusOutcomes(state, projection, outcome)) {
+            nodes++;
+            const mask = card ? state.deckAvailable & ~(1 << (card.id - 1)) : state.deckAvailable;
+            const next = { ...state, position: outcome.score, diceUsed: state.diceUsed + projection.diceDelta,
+              bonusRoll, hand: card ? [...hand, card.id] : hand, deckAvailable: mask || FULL_DECK };
+            const reset = item.reset || !mask, key = signature(next);
+            if (same(core(observed), { ...core(next), hand: classes(next.hand) })) {
+              matches.set(key, { state: next, reset, action: { kind: action === 0 ? "roll" : cards[state.hand[action - 1]].type === 2 ? "multiplier" : "card", slot: action, sums: outcome.sums } });
+              if (matches.size > 1) return { resolved: [...matches.values()], exhausted: true, nodes };
+            }
+            if (!seen.has(key)) {
+              if (seen.size >= maxStates) return { resolved: [], exhausted: false, nodes };
+              seen.add(key); queue.push({ state: next, reset });
+            }
+            yield;
+          }
+        }
+      }
+    }
+    return { resolved: [...matches.values()], exhausted: true, nodes };
+  }
+  const iterator = paths();
+  let result = null;
+  return { advance({ maxMs = 6, maxNodes = 2048 } = {}) {
+    if (result) return result;
+    const started = performance.now();
+    for (let nodes = 0; nodes < maxNodes && performance.now() - started < maxMs; nodes++) {
+      const next = iterator.next();
+      if (next.done) return result = next.value;
+    }
+    return { resolved: [], exhausted: false, pending: true };
+  } };
+}
+export function exploreTransition(previous, observed, options = {}) {
+  const result = createRecoverySearch(previous, observed, options).advance(options);
+  return Object.assign(result.resolved, { exhausted: result.exhausted });
 }
 
 const completeCore = observed => observed?.visible && Number.isInteger(observed.position) && observed.position >= 1 && observed.position <= 2898
@@ -194,7 +265,9 @@ export class AssistTracker {
     while (this.observations.length > 1200 || newest - this.observations[0].at > 120000) this.observations.shift();
   }
   intermediate(observed, at) {
-    let group = null, found = null, hint = null;
+    let group = null, hint = null;
+    const checkpoints = [];
+    let anchor = this.state;
     const current = keyOf(observed);
     const consider = () => {
       if (!group || group.key === current) return;
@@ -209,7 +282,11 @@ export class AssistTracker {
         return;
       }
       if (group.count < 2 || group.last - group.first < 50) return;
-      if (reconcileState(this.state, group.observation).length) found = group.observation;
+      const candidates = reconcileState(anchor, group.observation);
+      if (candidates.length === 1) {
+        checkpoints.push({ ...group.observation, at: group.last });
+        anchor = candidates[0].state;
+      }
     };
     for (const record of this.observations) {
       if (record.at <= this.stateAt || record.at > at) continue;
@@ -218,7 +295,7 @@ export class AssistTracker {
       if (key !== group?.key) { consider(); group = { key, observation: record.observation, first: record.at, last: record.at, count: 1 }; }
       else { group.last = record.at; group.count++; }
     }
-    consider(); return { intermediate: found, hint };
+    consider(); return { intermediate: checkpoints.at(-1) ?? null, checkpoints, hint };
   }
   accepted(at) { this.stateAt = at; this.actionHint = null; this.lost = false; }
   rememberCharacter(observed) {
@@ -300,6 +377,10 @@ export class AssistTracker {
       const actions = startedActions(this.state, observed);
       if (actions.length && !this.actionHint) this.actionHint = actions;
     }
+    if (this.verified && !this.actionHint && observed.position === this.state.position) {
+      const actions = startedActions(this.state, observed);
+      if (actions.length && !reconcileState(this.state, observed).length) this.actionHint = actions;
+    }
     if (this.movingKey && this.movingKey !== key) this.movingKey = null;
     if (key !== this.pendingKey) { this.pendingKey = key; this.pendingSince = at; this.pendingCount = 1; }
     else this.pendingCount++;
@@ -334,11 +415,25 @@ export class AssistTracker {
     // another window hides the board. A legal two-action explanation alone
     // cannot turn it into an arrived state. Positive presence permits genuine
     // same-square returns; clamped actions with no possible movement bypass it.
-    if (!unchanged && actionStartsHere(this.state, observed) && !observed.character?.present) {
+    const absent = observed.character?.present === false && Number.isFinite(observed.character.score) &&
+      observed.character.score <= .26;
+    const unknown = !observed.character || typeof observed.character.present !== "boolean" ||
+      observed.character.present === false && !absent;
+    if (!unchanged && actionStartsHere(this.state, observed) &&
+        (absent || unknown && !this.manual)) {
       this.movingKey = key;
+      this.actionHint ||= startedActions(this.state, observed);
+      // Unknown sprite evidence is neither presence nor a movement veto.
+      // A core that is also a legal same-square return is genuinely ambiguous:
+      // never authorize a prelude, but do not wait forever on an optional probe.
+      if (unknown && reconcileState(this.state, observed).length && at - this.pendingSince >= 4500) {
+        this.requireDeck("gap");
+        this.collectDeck(observed, key, at, sourceFrame);
+        return this.result(this.deckIssue(observed.deck));
+      }
       return this.result("settling", { moving: true });
     }
-    if (this.movingKey === key && observed.position === this.state.position && !observed.character?.present)
+    if (this.movingKey === key && observed.position === this.state.position && absent)
       return this.result("settling", { moving: true });
     if (unchanged) {
       this.rememberCharacter(observed);
@@ -347,12 +442,34 @@ export class AssistTracker {
     }
     const evidence = this.intermediate(observed, at), intermediate = evidence.intermediate;
     this.actionHint ||= evidence.hint;
-    const evidenceKey = JSON.stringify([intermediate, this.actionHint, this.lost]);
+    let gapAfterCheckpoint = false, priorAt = intermediate?.at;
+    if (intermediate) for (const record of this.observations) {
+      if (record.at <= intermediate.at || record.at > at) continue;
+      if (!record.observation.visible || record.at - priorAt > 500) gapAfterCheckpoint = true;
+      priorAt = record.at;
+    }
+    const evidenceKey = JSON.stringify([evidence.checkpoints, this.actionHint, this.lost, gapAfterCheckpoint]);
     if (this.reconciliation?.state !== this.state || this.reconciliation.key !== key || this.reconciliation.evidenceKey !== evidenceKey) {
       const candidates = reconcileState(this.state, observed);
-      const resolved = resolveTransition(this.state, observed, { intermediate,
-        firstActions: this.actionHint, directOnly: !intermediate && !this.lost && !!this.actionHint });
-      this.reconciliation = { state: this.state, key, candidates, resolved, evidenceKey };
+      let anchor = this.state, reset = false;
+      for (const checkpoint of evidence.checkpoints) {
+        const step = reconcileState(anchor, checkpoint)[0];
+        anchor = step.state; reset ||= step.reset;
+      }
+      const directOnly = intermediate ? !gapAfterCheckpoint : !this.lost && !!this.actionHint;
+      const options = { firstActions: intermediate ? null : this.actionHint, directOnly };
+      let resolved = resolveTransition(anchor, observed, options), search = null;
+      if (!directOnly && resolved.length < 2) {
+        search = createRecoverySearch(anchor, observed, options);
+        resolved = search.advance().resolved;
+      }
+      for (const candidate of resolved) candidate.reset ||= reset;
+      this.reconciliation = { state: this.state, key, candidates, resolved, evidenceKey, search, reset };
+    } else if (this.reconciliation.search) {
+      const result = this.reconciliation.search.advance();
+      this.reconciliation.resolved = result.resolved;
+      for (const candidate of result.resolved) candidate.reset ||= this.reconciliation.reset;
+      if (!result.pending) this.reconciliation.search = null;
     }
     const { candidates } = this.reconciliation;
     const { resolved } = this.reconciliation;

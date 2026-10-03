@@ -124,9 +124,9 @@ export class AssistVoice extends EventTarget {
       const action = result.best;
       if (Number.isInteger(action) && result.recommended?.includes(action)) {
         const clip = recommendationId(action, this.session.state.hand);
-        if (clip && this.isCueEnabled(clip)) {
-          this.deckVerifying = false;
-          return { key: "action:" + context + ":" + result.model + ":" + action, clip, delay: 0,
+        const key = "action:" + context + ":" + result.model + ":" + action;
+        if (clip && this.isCueEnabled(clip) && !(this.deckVerifying && key === this.delivered)) {
+          return { key, clip, delay: 0,
             revision: result.revision, requestId: result.requestId, after: result.startedAt };
         }
       }
@@ -164,6 +164,15 @@ export class AssistVoice extends EventTarget {
     if (!cue || cue.key === this.delivered) return;
     if (cue.key.startsWith("action:") && !this.freshAction(cue)) {
       this.requestActionFrame(cue);
+      // Keep acknowledgement pending until a recommendation actually starts.
+      if (this.deckVerifying && this.isCueEnabled("deck-ready")) {
+        const acknowledgement = { key: "deck-ready:" + this.assist.epoch + ":" + JSON.stringify(this.session.state),
+          clip: "deck-ready", delay: 100 };
+        if (acknowledgement.key !== this.delivered) {
+          this.desired = acknowledgement;
+          this.timer = setTimeout(() => { this.timer = null; this.speak(acknowledgement); }, acknowledgement.delay);
+        }
+      }
       return;
     }
     diagnostics.record("voice.queued", { clip: cue.clip, delay: cue.delay, key: cue.key,
@@ -202,6 +211,10 @@ export class AssistVoice extends EventTarget {
       }
     }
     const cue = this.cue();
+    if (this.desired?.clip === "deck-ready" && cue?.key.startsWith("action:") && !this.freshAction(cue)) {
+      this.requestActionFrame(cue);
+      return;
+    }
     if (cue?.key === this.desired?.key) {
       if (cue?.key.startsWith("action:")) {
         if (this.starting && !this.freshAction(this.desired)) {
@@ -212,7 +225,18 @@ export class AssistVoice extends EventTarget {
     }
 
     if (this.speaking) {
+      const recoveredFrame = this.assist.frame?.captureStartedAt;
+      const recovered = this.assist.reading.ready && this.assist.status !== "paused" &&
+        Number.isFinite(recoveredFrame) && performance.now() - recoveredFrame >= 0 &&
+        performance.now() - recoveredFrame <= MAX_ACTION_FRAME_AGE_MS;
+      if (this.desired?.clip === "stale" && this.session.mode === "assist" && this.assist.stream &&
+          this.desired.key.startsWith("request:" + this.assist.epoch + ":") &&
+          this.isCueEnabled(this.desired.clip) && !recovered && cue?.clip !== "disconnected") {
+        if (cue?.key.startsWith("action:")) this.requestActionFrame(cue);
+        return;
+      }
       if (this.desired?.key?.startsWith("request:") && this.session.mode === "assist" &&
+          this.desired.key.startsWith("request:" + this.assist.epoch + ":") &&
           this.assist.stream && !this.assist.reading.ready && this.isCueEnabled(this.desired.clip) &&
           cue?.clip === this.desired.clip) return;
       if (this.desired?.key?.startsWith("action:")) {
@@ -246,6 +270,7 @@ export class AssistVoice extends EventTarget {
       await this.audio.play(this.pack.url(cue.clip), { onStarted: () => {
         if (this.playback !== controller || controller.signal.aborted) return;
         if (action && !this.freshAction(cue)) { this.stop(); this.sync(); return; }
+        if (action) this.deckVerifying = false;
         this.starting = false; this.speaking = true; this.publish();
         diagnostics.record("voice.started", { clip: cue.clip, key: cue.key, requestId: cue.requestId,
           revision: cue.revision, frame: this.assist.frame });

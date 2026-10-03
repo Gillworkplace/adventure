@@ -4,8 +4,16 @@ import { FrameHistory } from "./frame-history.js";
 const history = new FrameHistory();
 const source = new OffscreenCanvas(1, 1), screen = new OffscreenCanvas(1234, 694);
 const input = source.getContext("2d"), output = screen.getContext("2d", { willReadFrequently: true });
-let recognizer, regionKey;
+let recognizer, regionKey, historyRegion;
 self.onmessage = async ({ data }) => {
+  if (data.type === "replay") {
+    try {
+      const result = recognizer && JSON.stringify(data.region) === JSON.stringify(historyRegion)
+        ? history.replay(recognizer, data.after, data.before) : { rows: [], reread: 0 };
+      self.postMessage({ type: "replay", token: data.token, region: data.region, after: data.after, ...result });
+    } catch { self.postMessage({ type: "replay", token: data.token, region: data.region, after: data.after, rows: [], reread: 0 }); }
+    return;
+  }
   if (data.type === "init") {
     try {
       const response = await fetch(new URL("../../public/recognition/game.json", import.meta.url));
@@ -19,7 +27,7 @@ self.onmessage = async ({ data }) => {
   if (!bitmap) return;
   try {
     const key = JSON.stringify([bitmap.width, bitmap.height, region]);
-    if (key !== regionKey) { history.clear(); regionKey = key; }
+    if (key !== regionKey) { history.clear(); regionKey = key; historyRegion = region; }
     if (source.width !== bitmap.width || source.height !== bitmap.height) { source.width = bitmap.width; source.height = bitmap.height; }
     input.drawImage(bitmap, 0, 0);
     output.drawImage(source, region.x, region.y, region.width, region.height, 0, 0, 1234, 694);

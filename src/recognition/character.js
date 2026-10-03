@@ -39,10 +39,11 @@ export class CharacterProbe {
     if (preferred) check(preferred);
     // The game allows avatar changes during play. A missing known sprite must
     // check every other playable avatar too, rather than look like movement.
-    if (!strict && best > .08) for (const template of this.templates) if (template !== preferred) {
+    if (best > presence) for (const template of this.templates) if (template !== preferred) {
       check(template, .08);
       if (best <= .08) break;
     }
+    if (!Number.isFinite(best) || !Number.isInteger(id)) return null;
     if (best <= presence) this.preferred = id;
     return { id, score: Math.round(best * 1000) / 1000, present: best <= presence };
   }

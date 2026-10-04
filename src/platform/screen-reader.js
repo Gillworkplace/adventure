@@ -1,5 +1,6 @@
 import { diagnostics } from "./report.js";
 import { FrameRecorder } from "./frame-recorder.js";
+import { CaptureFrames } from "./capture-frames.js";
 
 export const frameDelay = (elapsed, fast, urgent = false) => urgent ? 0 : Math.max(fast ? 10 : 20, (fast ? 120 : 250) - elapsed);
 
@@ -14,6 +15,11 @@ export class ScreenReader {
     this.context = context;
     this.id = 0;
     this.lastFrame = performance.now();
+    this.frames = new CaptureFrames(stream);
+    this.visibilityChanged = () => {
+      if (!document.hidden) { this.visibleAt = performance.now(); this.requestFrame(this.visibleAt); }
+    };
+    document.addEventListener?.("visibilitychange", this.visibilityChanged);
     if (this.video.requestVideoFrameCallback) {
       const next = (_, metadata) => {
         if (this.stopped) return;
@@ -23,7 +29,7 @@ export class ScreenReader {
       };
       this.videoCallback = this.video.requestVideoFrameCallback(next);
     }
-    try { this.recorder = new FrameRecorder(this.video, history, () => this.region, () => this.sourceFrame ?? null); }
+    try { this.recorder = new FrameRecorder(this.video, history, () => this.region, () => this.frameNumber(), () => this.bitmap(), () => this.frameTime()); }
     catch (error) { diagnostics.capture(error, "recognition.history.init"); }
     this.worker = new Worker(new URL("../recognition/worker.js", import.meta.url), { type: "module" });
     this.worker.onmessage = ({ data }) => {
@@ -34,7 +40,7 @@ export class ScreenReader {
         this.busy = false;
         if (data.error) diagnostics.capture(new Error(data.error.message || "Recognition frame error"), "recognition.worker.frame", { stack: data.error.stack });
         if (performance.now() - this.sentAt > 3000) {
-          this.fail("stale"); this.schedule(0); return;
+          this.fail(document.hidden ? "background" : "stale"); this.schedule(0); return;
         }
         this.lastFrame = performance.now();
         this.region = data.region;
@@ -65,21 +71,27 @@ export class ScreenReader {
     if (!this.busy) this.schedule(0);
   }
   replayHistory(after, before) { return this.recorder?.replay(after, before) ?? false; }
+  frameNumber() { return this.frames.active ? "capture:" + this.frames.sequence : this.sourceFrame ?? null; }
+  frameTime() { return this.frames.active ? this.frames.at : this.sourceFrameAt; }
+  bitmap() { return this.frames.active ? this.frames.bitmap() : createImageBitmap(this.video); }
   failed(reason = "reader") { if (!this.stopped) { diagnostics.record("screen.reader.fail", { reason }); this.stop(); this.fail("reader"); } }
   async tick() {
     if (this.stopped) return;
     const now = performance.now();
-    if (now - this.lastFrame > 3500) this.fail("stale");
-    if (this.busy && now - this.sentAt > 12000 || !this.ready && now - this.lastFrame > 12000) return this.failed();
-    if (!this.ready || this.busy || this.video.readyState < 2) {
+    const since = Math.max(this.lastFrame, this.visibleAt ?? -Infinity);
+    if (now - since > 3500) this.fail(document.hidden ? "background" : "stale");
+    if (!document.hidden && (this.busy && now - Math.max(this.sentAt, this.visibleAt ?? -Infinity) > 12000 || !this.ready && now - since > 12000)) return this.failed();
+    if (!this.ready || this.busy || (this.frames.active ? !this.frames.frame : this.video.readyState < 2)) {
       return this.schedule(100);
     }
-    if (this.sourceFrame != null && this.sourceFrame === this.capturedSourceFrame) return this.schedule(20);
+    const sourceFrame = this.frameNumber();
+    if (sourceFrame != null && sourceFrame === this.capturedSourceFrame) return this.schedule(20);
     this.urgent = false;
-    this.busy = true; this.sentAt = Math.min(now, this.sourceFrameAt ?? now); this.capturedSourceFrame = this.sourceFrame;
+    this.busy = true; this.sentAt = Math.min(now, this.frameTime() ?? now); this.capturedSourceFrame = sourceFrame;
     this.schedule(100);
     try {
-      const bitmap = await createImageBitmap(this.video);
+      const bitmap = await this.bitmap();
+      if (!bitmap) { this.busy = false; this.schedule(20); return; }
       if (this.stopped) { bitmap.close(); return; }
       try { this.worker.postMessage({ type: "frame", id: ++this.id, bitmap, context: this.context() }, [bitmap]); }
       catch (error) { bitmap.close(); throw error; }
@@ -90,6 +102,8 @@ export class ScreenReader {
     clearTimeout(this.timer);
     this.worker?.terminate();
     this.recorder?.stop();
+    this.frames.stop();
+    document.removeEventListener?.("visibilitychange", this.visibilityChanged);
     if (this.videoCallback != null) this.video.cancelVideoFrameCallback?.(this.videoCallback);
     this.video.pause(); this.video.srcObject = null;
   }

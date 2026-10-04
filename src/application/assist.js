@@ -26,7 +26,7 @@ export class Assist extends EventTarget {
   get snapshot() {
     return { status: this.status, issue: this.issue, connected: !!this.stream, supported: this.support.available,
       reading: this.reading, observation: this.tracker.lastObservation, region: this.region,
-      processingMs: this.processingMs, frame: this.frame, history: this.history,
+      processingMs: this.processingMs, frame: this.frame, history: this.history, captureFrames: !!this.reader?.frames?.active,
       verifications: this.tracker.verifications, mismatch: this.tracker.lastMismatch };
   }
 
@@ -65,7 +65,7 @@ export class Assist extends EventTarget {
     const now = performance.now();
     if (!Number.isFinite(frame.captureStartedAt) || frame.captureStartedAt > now || now - frame.captureStartedAt > 500) {
       this.tracker.record(frame.observation, frame.captureStartedAt);
-      this.unreadable("stale"); this.requestFrame(now); return;
+      this.unreadable(globalThis.document?.hidden ? "background" : "stale"); this.requestFrame(now); return;
     }
     try {
       this.reading = this.tracker.update(frame.observation, frame.captureStartedAt,

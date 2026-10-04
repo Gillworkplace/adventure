@@ -1,8 +1,9 @@
 // A single bounded capture can be in flight. It does not wait for the full
 // recognizer, and it never builds a backlog of shared-screen bitmaps.
 export class FrameRecorder {
-  constructor(video, receive, region, sourceFrame = () => null) {
+  constructor(video, receive, region, sourceFrame = () => null, capture = () => createImageBitmap(video), frameTime = () => performance.now()) {
     this.video = video; this.receive = receive; this.region = region; this.sourceFrame = sourceFrame; this.id = 0;
+    this.capture = capture; this.frameTime = frameTime;
     this.worker = new Worker(new URL("../recognition/history-worker.js", import.meta.url), { type: "module" });
     this.worker.onmessage = ({ data }) => {
       if (this.stopped) return;
@@ -37,10 +38,11 @@ export class FrameRecorder {
     if (sourceFrame != null && sourceFrame === this.lastSourceFrame) return this.schedule(30);
     this.lastSourceFrame = sourceFrame;
     this.busy = true; this.startedAt = performance.now();
-    const id = ++this.id, at = this.startedAt;
-    this.watchdog = setTimeout(() => this.stop(), 4000);
+    const id = ++this.id, at = Math.min(this.startedAt, this.frameTime() ?? this.startedAt);
+    this.watchdog = setTimeout(() => { if (!document.hidden) this.stop(); }, 4000);
     try {
-      const bitmap = await createImageBitmap(this.video);
+      const bitmap = await this.capture();
+      if (!bitmap) { clearTimeout(this.watchdog); this.busy = false; this.schedule(100); return; }
       if (this.stopped) { bitmap.close(); return; }
       try { this.worker.postMessage({ type: "frame", bitmap, region, at, id }, [bitmap]); }
       catch (error) { bitmap.close(); throw error; }

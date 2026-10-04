@@ -31,6 +31,7 @@ export class AssistVoice extends EventTarget {
       if (this.lastAvailable !== this.available) { this.lastAvailable = this.available; this.publish(); }
     };
     for (const target of [session, coordinator, assist]) target.addEventListener("change", this.update);
+    globalThis.document?.addEventListener?.("visibilitychange", this.update);
   }
   get available() { return this.coordinator.enabled; }
   get preparing() { return this.status === "loading"; }
@@ -185,6 +186,7 @@ export class AssistVoice extends EventTarget {
     }
     if (!this.available) { if (this.enabled || this.preparing) this.disable(); else this.publish(); return; }
     if (!this.enabled || this.preparing || this.holds || this.previewing || this.playbackBlocked) return;
+    if (this.desired?.clip === "stale" && globalThis.document?.hidden && this.assist.status !== "paused") this.stop();
     const result = this.coordinator.result;
     if (this.isCueEnabled("roll") && this.session.mode === "assist" && this.assist.reading.ready && result.status === "running" &&
         this.confirmRequest !== result.requestId) {
@@ -270,6 +272,7 @@ export class AssistVoice extends EventTarget {
   }
   async speak(cue) {
     if (!this.enabled || this.desired !== cue) return;
+    if (cue.clip === "stale" && globalThis.document?.hidden && this.assist.status !== "paused") { this.stop(); return; }
     const action = cue.key.startsWith("action:");
     if (action && !this.freshAction(cue)) { this.requestActionFrame(cue); return; }
     const controller = this.playback = new AbortController();
@@ -350,6 +353,7 @@ export class AssistVoice extends EventTarget {
   dispose() {
     this.disposed = true;
     for (const target of [this.session, this.coordinator, this.assist]) target.removeEventListener("change", this.update);
+    globalThis.document?.removeEventListener?.("visibilitychange", this.update);
     this.disable();
   }
 }

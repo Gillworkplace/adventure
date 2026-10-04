@@ -92,6 +92,7 @@ export function recommendationParts(action, hand, language = "ko") {
 export function requestCue(assist) {
   if (!assist.stream) return { key: "disconnected", delay: 1200 };
   const issue = assist.status === "paused" ? "stale" : assist.reading.issue;
+  if (issue === "stale" && assist.status !== "paused" && globalThis.document?.hidden) return null;
   if (assist.reading.ready && assist.status !== "paused" || !issue || ["waiting", "settling"].includes(issue)) return null;
   const key = issue === "deck-reopen" ? "deck-open" : issue;
   if (!phrases[key]) return null;

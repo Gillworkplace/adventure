@@ -4,7 +4,7 @@
 
 ## VELA v4.2 — COMPACT100 Hinge
 
-현재 모델은 동결된 Hinge epoch 1, horizon 100, 2-step expectimax와 실제 잔여 덱 및 DeckPotential β=0.6을 사용합니다. FULL100 최소 생성기(C++ 1개·헤더 3개), 압축·학습 의존 소스, 실행 명령, 원본 해시와 평가 근거는 [v4.2 패키지](vela-v4.2/README.md)에 있습니다. FULL100 원본은 앱 실행에 필요하지 않습니다. 별도로 학습한 Hinge 최종 점수 예측기는 앱에 연결돼 있으며, 예측기 학습 자료는 이 가치 모델 연구 패키지에 포함하지 않습니다.
+현재 모델은 동결된 Hinge epoch 1, horizon 100, 2-step expectimax와 실제 잔여 덱 및 DeckPotential β=0.6을 사용합니다. FULL100 최소 생성기(C++ 1개·헤더 3개), 압축·학습 의존 소스, 실행 명령과 최종 결과 요약은 [v4.2 패키지](vela-v4.2/README.md)에 있습니다. FULL100 원본은 앱 실행에 필요하지 않습니다. 별도로 학습한 Hinge 최종 점수 예측기는 앱에 연결돼 있으며, 예측기 학습 자료는 이 가치 모델 연구 패키지에 포함하지 않습니다.
 
 ## VELA v4.1 — COMPACT48
 

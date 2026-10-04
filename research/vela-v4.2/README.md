@@ -2,7 +2,7 @@
 
 배포 모델은 동결된 `hinge_k256_e1.bin`입니다. SHA-256은 `3b25cacd47d1de76ef0a6d6ba60d0cf3e4ce6fcc946c3bfa305cdd3a04a879e9`, 크기는 91,179,876 bytes(86.96 MiB)입니다. 정책은 `base`, `gamma=0`, `OPT=4228`, 2-step expectimax와 실제 잔여 덱, DeckPotential β=0.6입니다. H24/Four 보정을 추가하지 않습니다.
 
-이 패키지는 가치 모델 생성·압축 및 연구 결과를 보존합니다. 최종 점수 표시용 예측기는 별도 작업이며 포함하지 않습니다. 배포 파일 설치와 WASM 빌드는 [실행 소스 안내](../../src/policies/vela/native/README.md)를 참고하세요.
+이 패키지는 가치 모델 생성·압축·Hinge 학습에 필요한 코드, 실행 명령과 최종 결과 요약을 포함합니다. 최종 점수 예측기 학습 자료는 포함하지 않습니다. 배포 파일 설치와 WASM 빌드는 [실행 소스 안내](../../src/policies/vela/native/README.md)를 참고하세요.
 
 ## 포함 범위
 
@@ -13,10 +13,9 @@
 | `compression/build_models.py`, `compression/src/common.py` | FULL100 공유 손패·시간 구조 학습 및 int16 내보내기 |
 | `compression/quant_balance.py` | 함수 보존 채널 배율 후 양자화 |
 | `compression/collect_q.py`, `refine_actions.py`, `src/action_train/` | 고정 teacher/student 행동 표본과 Hinge 학습·선별 |
-| `compression/src/runtime/`, `compression/include/` | native 정책 평가와 teacher의 의존 소스 |
-| `evidence/`, `source-provenance.json` | 동결·통계·이식 검증 및 원본 SHA 기록 |
+| `compression/include/` | Hinge 학습과 FULL100 teacher의 의존 헤더 |
 
-FULL100 생성에 필요한 소스는 위의 **4개 파일뿐**입니다. 압축 및 평가 헤더는 별도 의존 파일입니다. 원본 FULL100, 학습 중간 데이터, 다른 후보 모델, 실행 파일은 포함하지 않습니다. 생성 산출물은 Git 제외 대상입니다.
+FULL100 생성에 필요한 소스는 위의 **4개 파일뿐**입니다. 압축·Hinge 학습에는 별도의 의존 파일이 필요합니다. 원본 FULL100, 학습 중간 데이터, 다른 후보 모델, 실행 파일은 포함하지 않습니다. 생성 산출물은 Git 제외 대상입니다.
 
 ## FULL100 생성
 
@@ -37,7 +36,6 @@ g++ -std=c++17 -O3 -march=native -fopenmp -I research/vela-v4.2/include research
 ```powershell
 g++ -std=c++20 -O3 -ffp-contract=off research/vela-v4.2/compression/src/action_train/study.cpp -o research/vela-v4.2/compression/src/action_train/study.exe
 Copy-Item research/vela-v4.2/compression/src/action_train/study.exe research/vela-v4.2/compression/src/action_train/study_student.exe
-g++ -std=c++20 -O3 -ffp-contract=off research/vela-v4.2/compression/src/runtime/rethink_runner.cpp -o research/vela-v4.2/compression/src/runtime/runner.exe -lpsapi
 Push-Location research/vela-v4.2/compression
 try {
     python -c "from build_models import *; fit(False, {'unified_k192_t24': (192,24), 'unified_k256_t16': (256,16)}, 'unified')"
@@ -50,7 +48,7 @@ try {
 
 K192 함께 계산하는 것은 원본 K256 학습의 난수 소비·공유 구조를 유지하기 위해서입니다. `make_diagnostic_queries.py`는 원본과 같은 고정 20,000개 가치 진단 표본만 생성합니다.
 
-Hinge는 고정 teacher/student 표본을 혼합해 3 epoch를 학습하고, 별도 validation의 teacher Q2 regret으로 epoch를 고릅니다. 선택된 파일은 `models/hinge_k256_e1.bin`입니다. 원본은 512 train/128 validation seed를 사용하며 두 행동 정책의 같은 seed 궤적을 독립 게임으로 중복 계산하지 않습니다. 최종 100,000게임 은행은 모델 선택 후 동결했습니다. `evidence/`의 원본 JSON 안 경로는 당시 연구 경로를 기록한 역사 자료입니다.
+Hinge는 고정 teacher/student 표본을 혼합해 3 epoch를 학습하고, 별도 validation의 teacher Q2 regret으로 epoch를 고릅니다. 선택된 파일은 `models/hinge_k256_e1.bin`입니다. 원본은 512 train/128 validation seed를 사용하며 두 행동 정책의 같은 seed 궤적을 독립 게임으로 중복 계산하지 않습니다. 최종 100,000게임 은행은 모델 선택 후 동결했습니다.
 
 BLAS·컴파일러·부동소수점 차이로 재생성 결과가 달라질 수 있습니다. 소스 패키지는 바이트 동일 재생성을 보증하지 않습니다. 모델 SHA와 native/WASM 가치·행동, 게임 점수 검증 후에만 재생성 모델을 사용할 수 있습니다.
 
@@ -78,4 +76,4 @@ v4.2와 v4.1은 독립 표본입니다. 기존 결과를 이용한 독립 두 �
 - `adventure_vela/bak/legacy_20260926/S2_20260919_RDC/vendor/research/`
 - `adventure_vela/research/web_integration/compact100_hinge_20261003/`
 
-폴더 구조에 맞춘 include·입력 경로만 변경했습니다. 알고리즘·학습 하이퍼파라미터·seed는 유지합니다. `source-provenance.json`은 각 원본 파일 해시를 기록합니다.
+폴더 구조에 맞춘 include·입력 경로만 변경했습니다. 알고리즘·학습 하이퍼파라미터·seed는 유지합니다.

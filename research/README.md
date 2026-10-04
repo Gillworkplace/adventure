@@ -2,6 +2,10 @@
 
 English | [한국어](README.ko.md)
 
+## VELA v4.2 — COMPACT100 Hinge
+
+The current model uses frozen Hinge epoch 1, horizon 100, 2-step expectimax and actual remaining deck with DeckPotential beta=0.6. The minimal FULL100 generator (one C++ file and three headers), compression/training dependencies, commands, source hashes and evaluation evidence are in [the v4.2 package](vela-v4.2/README.md). The original FULL100 table is not needed at runtime. The separate Hinge score predictor is connected in the application runtime; predictor training data is not part of this value-model research package.
+
 ## VELA v4.1 — COMPACT48
 
 | Directory | Purpose |

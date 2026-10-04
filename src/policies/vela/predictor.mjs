@@ -1,5 +1,5 @@
 export function createPredictor(model) {
-  if (model.format !== "vela-v4.1-score-v1") throw Error("Unsupported predictor format");
+  if (!["hinge-score-v1", "vela-v4.1-score-v1"].includes(model.format)) throw Error("Unsupported predictor format");
   const trees = model.trees.map(tree => ({
     feature: Int16Array.from(tree.feature),
     threshold: Float64Array.from(tree.threshold),
@@ -9,9 +9,15 @@ export function createPredictor(model) {
   }));
   const classOf = Uint8Array.from(model.classOf);
   return function predictFinalScore(state, q, phi) {
-    if (state.diceUsed >= 100 && !state.bonusRoll) return state.position;
-    if (!Number.isFinite(q)) throw Error("A finite v4.1 action Q is required");
-    if (model.usePhi && !Number.isFinite(phi)) throw Error("The v4.1 compact potential is required");
+    if (!Number.isInteger(state.position) || state.position < 1 || state.position > 2898
+      || !Number.isInteger(state.diceUsed) || state.diceUsed < 0 || state.diceUsed > 100
+      || typeof state.bonusRoll !== "boolean" || !Array.isArray(state.hand) || state.hand.length > 5
+      || state.hand.some(id => !Number.isInteger(id) || id < 1 || id > 30)
+      || !Number.isInteger(state.deckAvailable) || state.deckAvailable < 1 || state.deckAvailable > 0x3fffffff)
+      throw Error("Invalid Hinge predictor state");
+    if (state.diceUsed === 100 && !state.bonusRoll) return state.position;
+    if (!Number.isFinite(q)) throw Error("A finite Hinge action Q is required");
+    if (model.usePhi && !Number.isFinite(phi)) throw Error("The Hinge compact potential is required");
     const r = 100 - state.diceUsed;
     if (!Number.isInteger(r) || r < 0 || r > 100) throw Error("Invalid diceUsed");
     const x = new Float32Array(model.usePhi ? 51 : 50);

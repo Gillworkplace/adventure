@@ -1,0 +1,173 @@
+{
+  "full100/solve-hands-full100.cpp": {
+    "source": "research/full_hand_dp/oneshot_full100_20260928/solve-hands-full100.cpp",
+    "sourceSha256": "1989a62104ca3cd14b61fd9688cf2b0db2a5ca1797f9f5a84f4db23cf2345870",
+    "packagedSha256": "1989a62104ca3cd14b61fd9688cf2b0db2a5ca1797f9f5a84f4db23cf2345870"
+  },
+  "include/core.hpp": {
+    "source": "bak/legacy_20260926/S2_20260919_RDC/vendor/research/core.hpp",
+    "sourceSha256": "3d6fb86446f1839ee29f6cc4ce93d342f9d5d54d5c407b0024aef4b730a1f083",
+    "packagedSha256": "3d6fb86446f1839ee29f6cc4ce93d342f9d5d54d5c407b0024aef4b730a1f083"
+  },
+  "include/tables.hpp": {
+    "source": "bak/legacy_20260926/S2_20260919_RDC/vendor/research/tables.hpp",
+    "sourceSha256": "7ad2d05e6acde72688307358849599e7852c01863c57bae5f81f4b05a2db0188",
+    "packagedSha256": "7ad2d05e6acde72688307358849599e7852c01863c57bae5f81f4b05a2db0188"
+  },
+  "include/value-model.hpp": {
+    "source": "bak/legacy_20260926/S2_20260919_RDC/vendor/research/value-model.hpp",
+    "sourceSha256": "8eaadfadb020e26081c77f2689298d42dfc62b0a27a08ca39e46964e8483b636",
+    "packagedSha256": "8eaadfadb020e26081c77f2689298d42dfc62b0a27a08ca39e46964e8483b636"
+  },
+  "compression/build_models.py": {
+    "source": "research/value_compression/rethink100_20260929/build_models.py",
+    "sourceSha256": "8e8873549ce148f2e49106ac6aded9bd6e7e4ecb53b492600392cb50905cbc96",
+    "packagedSha256": "8e8873549ce148f2e49106ac6aded9bd6e7e4ecb53b492600392cb50905cbc96"
+  },
+  "compression/quant_balance.py": {
+    "source": "research/value_compression/rethink100_20260929/quant_balance.py",
+    "sourceSha256": "4e3c8bbbf6d0527ce89435f9320e9301154cc36c52d814102c09d3ffb8d67284",
+    "packagedSha256": "4e3c8bbbf6d0527ce89435f9320e9301154cc36c52d814102c09d3ffb8d67284"
+  },
+  "compression/collect_q.py": {
+    "source": "research/value_compression/rethink100_20260929/collect_q.py",
+    "sourceSha256": "1ae2397fa760de2ed8842623a6c28a3c1c3fda5c8b78dd29295afdf958bf0d2a",
+    "packagedSha256": "088f8ddd218d5534fbe7df616882cb0c48168e879fe21d884e0b126bf633512a"
+  },
+  "compression/refine_actions.py": {
+    "source": "research/value_compression/rethink100_20260929/refine_actions.py",
+    "sourceSha256": "ba5357f179623a6afd6b80ad13ecb8c06c255680e4286dcf0afa9b1128a84b25",
+    "packagedSha256": "e6786f9684ca228fa152cf242645c6a2aee051617dd6c67cb9c6b67789207f0c"
+  },
+  "compression/src/common.py": {
+    "source": "research/value_compression/rethink100_20260929/src/common.py",
+    "sourceSha256": "6ea1682c34569e6e128bd8ec89ea1896e2d9ca44ae716e34c389bbb74856bcd0",
+    "packagedSha256": "06dacab92475a3b6ad6b30a3b61c03cfbf1dd784aa75ef6e36a7e800daa358c3"
+  },
+  "compression/src/action_train/study.cpp": {
+    "source": "research/value_compression/rethink100_20260929/src/action_train/study.cpp",
+    "sourceSha256": "781e8431abebe87540fc975ce9b7bfd28fbe9cca855cf3b2d8363d8c3c1054ac",
+    "packagedSha256": "a06bb114c3192e44677dba4eca5c6793f7d8ad25e60eb03f9e3b2493dd396009"
+  },
+  "compression/src/action_train/planner.hpp": {
+    "source": "research/value_compression/rethink100_20260929/src/action_train/planner.hpp",
+    "sourceSha256": "a32439a1923ec0f2367d7c55e7364205e1d938fc07c33577673560cd5b285a64",
+    "packagedSha256": "2efe2e6dadb62cf16783643c92213ae199273e01f1ecd7948c87b38c5e8e2568"
+  },
+  "compression/src/action_train/compact.hpp": {
+    "source": "research/value_compression/rethink100_20260929/src/action_train/compact.hpp",
+    "sourceSha256": "ef10972601fd3d29510cc0dbfd55f16cf3300181db5ddca3b94d09344600e8ce",
+    "packagedSha256": "ef10972601fd3d29510cc0dbfd55f16cf3300181db5ddca3b94d09344600e8ce"
+  },
+  "compression/src/action_train/grad.hpp": {
+    "source": "research/value_compression/rethink100_20260929/src/action_train/grad.hpp",
+    "sourceSha256": "09fa9e5957fc5aa800d98b8e8e40a3657e54b2cdc0cae4cac24e277d13a20494",
+    "packagedSha256": "0a932863988bcdc764f59527e4fb7e5cff3f499f5ea668e649fd46f9e4170a56"
+  },
+  "compression/src/action_train/select_mixed.py": {
+    "source": "research/value_compression/rethink100_20260929/src/action_train/select_mixed.py",
+    "sourceSha256": "cdafe4f309129b0392830d25e8a66c8fe1635a32806279b50d4aa0f68066b51a",
+    "packagedSha256": "cdafe4f309129b0392830d25e8a66c8fe1635a32806279b50d4aa0f68066b51a"
+  },
+  "compression/src/runtime/rethink_runner.cpp": {
+    "source": "research/value_compression/rethink100_20260929/src/runtime/rethink_runner.cpp",
+    "sourceSha256": "f779acda911ec47e78f08d61772114d9e821474a78488306b5e472687cfabef8",
+    "packagedSha256": "14121f6985e455318b191c358de60be309a79657224c2a88a533b0b121ab03e0"
+  },
+  "compression/src/runtime/engine_factor.hpp": {
+    "source": "research/value_compression/rethink100_20260929/src/runtime/engine_factor.hpp",
+    "sourceSha256": "4b435271b0f7bf71c86b5984f95afc54fcba06bc83cca989cde05d3a01035b39",
+    "packagedSha256": "3ceacda6d98037c02ba8c8beb01fc5d5b9c8c62f978aa8c64bab3fe55156d007"
+  },
+  "compression/src/runtime/compact_factor.hpp": {
+    "source": "research/value_compression/rethink100_20260929/src/runtime/compact_factor.hpp",
+    "sourceSha256": "4e64a944c711220716b2bf7972c05b17a9b49262f4a37028205c9b893a486a33",
+    "packagedSha256": "7b40e25f7ebba02cdc09f18aa5cf4d14b16c192c3f05c439575d649a7f75f72d"
+  },
+  "compression/src/runtime/hd_tail.hpp": {
+    "source": "research/value_compression/rethink100_20260929/src/runtime/hd_tail.hpp",
+    "sourceSha256": "1241034d202ac88f67fbea9b521d9ed32f5f376dca65886132b87ab5f858c0d8",
+    "packagedSha256": "985a3064ff8a4ca1e10792a1db5fd8870df82b3504490ff8422cbeb1bb124b7a"
+  },
+  "compression/src/runtime/exact_dp.hpp": {
+    "source": "research/value_compression/rethink100_20260929/src/runtime/exact_dp.hpp",
+    "sourceSha256": "9dc56d0d0c82c82194aad3b78b820dabdf5d58fa767b648a4b677d2c7a466f9a",
+    "packagedSha256": "3f38af026e3c98bbb7a5d59e285d74bb67f2469cf94be4a3c0cd60552b91880f"
+  },
+  "compression/include/core.hpp": {
+    "source": "bak/legacy_20260926/S2_20260919_RDC/vendor/research/core.hpp",
+    "sourceSha256": "3d6fb86446f1839ee29f6cc4ce93d342f9d5d54d5c407b0024aef4b730a1f083",
+    "packagedSha256": "3d6fb86446f1839ee29f6cc4ce93d342f9d5d54d5c407b0024aef4b730a1f083"
+  },
+  "compression/include/tables.hpp": {
+    "source": "bak/legacy_20260926/S2_20260919_RDC/vendor/research/tables.hpp",
+    "sourceSha256": "7ad2d05e6acde72688307358849599e7852c01863c57bae5f81f4b05a2db0188",
+    "packagedSha256": "7ad2d05e6acde72688307358849599e7852c01863c57bae5f81f4b05a2db0188"
+  },
+  "compression/include/exact-endgame.hpp": {
+    "source": "bak/legacy_20260926/S2_20260919_RDC/vendor/research/exact-endgame.hpp",
+    "sourceSha256": "82b523b87bcd00cf10a2295ec404faf2aa30fe1367c8f2684f58f1e20e8e8573",
+    "packagedSha256": "82b523b87bcd00cf10a2295ec404faf2aa30fe1367c8f2684f58f1e20e8e8573"
+  },
+  "compression/include/deck-coefficients.hpp": {
+    "source": "bak/legacy_20260926/S2_20260919_RDC/vendor/research/deck-coefficients.hpp",
+    "sourceSha256": "3fbdd938e2363562d0d5658b174deab8da45b3c6b853ca7e8c9c807e001b2b6d",
+    "packagedSha256": "3fbdd938e2363562d0d5658b174deab8da45b3c6b853ca7e8c9c807e001b2b6d"
+  },
+  "compression/include/full100_reference.hpp": {
+    "source": "research/value_compression/joint_search_v2_20260929/src/full100_reference.hpp",
+    "sourceSha256": "7cfdf87751d06bdb318c4c918fb1f6a52ca422f8234b468cb0c4348aa05bea9e",
+    "packagedSha256": "7cfdf87751d06bdb318c4c918fb1f6a52ca422f8234b468cb0c4348aa05bea9e"
+  },
+  "evidence/protocol.json": {
+    "source": "research/value_compression/rethink100_20260929/protocol.json",
+    "sourceSha256": "4b6c2a6a96f77e4679efc29f59b8722f8951a3a56c93ee8a0b9b458c300f35be",
+    "packagedSha256": "4b6c2a6a96f77e4679efc29f59b8722f8951a3a56c93ee8a0b9b458c300f35be"
+  },
+  "evidence/ACTION_REFINEMENT.json": {
+    "source": "research/value_compression/rethink100_20260929/ACTION_REFINEMENT.json",
+    "sourceSha256": "e404cc5f5744b308881c5126c8a24e759d432465e4b7e01a0c22670233f26361",
+    "packagedSha256": "4c2bacb59ffd2d5b6509db547b0d7d8422d15535a64b214daca13e86785a9521"
+  },
+  "evidence/FINAL_STATISTICS.json": {
+    "source": "research/value_compression/rethink100_20260929/FINAL_STATISTICS.json",
+    "sourceSha256": "de60d8aee22f037371fc7d5555ae975cf14d5fd5515fa2eef0572ae99dc929f2",
+    "packagedSha256": "97d79965cf22df9c182e8ec750ab60450aff02f2e17c92488eae52aa8e1ee07e"
+  },
+  "evidence/final_frozen.json": {
+    "source": "research/value_compression/rethink100_20260929/locks/final_frozen.json",
+    "sourceSha256": "883c4d64826370d4b13d76be01d6ca980e7c596712ea5f5a76f64f0ed3bec02a",
+    "packagedSha256": "b641fa77089b160604420cad5a56b393ddc87f4d162cdcf4bb39c488e76a14f4"
+  },
+  "evidence/hinge_mixed_selection.json": {
+    "source": "research/value_compression/rethink100_20260929/results/hinge_mixed_selection.json",
+    "sourceSha256": "2d1abf2ab6c0c248b8b1626d07e32806e9255614f9587fe8694d6fb7d27f977b",
+    "packagedSha256": "ccef7c73771387b1fb11e08e5efcd8e12be9fc0602e07f642a57f5d57d3e3de8"
+  },
+  "evidence/quant_balance.json": {
+    "source": "research/value_compression/rethink100_20260929/results/unified_k256_t16_quant_balance.json",
+    "sourceSha256": "d115591d418b8903e6dce1e6e015cec1a4b02e84d09d448dcfa70c34eda719df",
+    "packagedSha256": "fc7493bacf834fad94c9c5b04d680a1b01020bcf0a044fcb25b8b45aca3936de"
+  },
+  "evidence/vela-v4.1-million.json": {
+    "source": "research/value_compression/vela_v41_million_20260928/results/final_statistics.json",
+    "sourceSha256": "a4deaa7fd2017d21b09d8316d70f72c87755acc48758afbc05fe5100554c8ec7",
+    "packagedSha256": "ac65a54ec3ba444be23f4d36f1d8cf61b6c830590cc6dc45b66bb3b9c56f1091"
+  },
+  "evidence/prior-wasm-parity.json": {
+    "source": "research/web_integration/compact100_hinge_20261003/wasm-parity.json",
+    "sourceSha256": "76fd84cde2c14887b71a108b70b97700e99af5ddf7b2664c9334b26d7f6f17b0",
+    "packagedSha256": "76fd84cde2c14887b71a108b70b97700e99af5ddf7b2664c9334b26d7f6f17b0"
+  },
+  "evidence/prior-web-build.json": {
+    "source": "research/web_integration/compact100_hinge_20261003/build_provenance.json",
+    "sourceSha256": "82f025f564bb53c7657fd5bfda379074dc8e1889c0081eb736e946c9e0cd31f3",
+    "packagedSha256": "c3244c30acee9eb1f90eee5034c82e0adb819b81425b63d4b5e7a750762ed445"
+  },
+  "compression/make_diagnostic_queries.py": {
+    "source": "research/value_compression/rethink100_20260929/value_diagnostics.py",
+    "sourceSha256": "92cf22ab604401fefdf48beecfb4aee54bb0f431bbf9946649ae162d2a39c7e4",
+    "adaptation": "Only fixed query generation retained; reconstruction comparison branches omitted.",
+    "packagedSha256": "21ac07c1390e478abff1b74f4cf18d750c1952c2d43cbbd6ab3de293951ed3a4"
+  }
+}

@@ -1,4 +1,4 @@
 export const modelComparison = {
-  vela: { meanScore: 1876, relativeTime: "1×" },
-  x36: { meanScore: 1859.9914, relativeTime: "약 20–300×" },
+  vela: { meanScore: 1877, relativeTime: "기기별 차이" },
+  x36: { meanScore: 1859.9914, relativeTime: "기기별 차이" },
 };

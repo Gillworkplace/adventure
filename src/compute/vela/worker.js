@@ -8,6 +8,8 @@ import { fetchJson } from "../../platform/requests.js";
 let module, ready = false, loadedInfo, predictScore;
 const post = (type, data = {}) => self.postMessage({ type, ...data });
 async function preparePredictor(manifest) {
+  predictScore = null;
+  if (manifest.scorePredictor === false) return;
   try {
     const [{ createPredictor }, model] = await Promise.all([
       import("../../policies/vela/predictor.mjs"),

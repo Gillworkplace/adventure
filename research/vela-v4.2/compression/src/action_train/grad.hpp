@@ -1,0 +1,12 @@
+// Sparse adjoint through the current student's max decisions. No teacher-fixed subtree.
+struct Grad {
+ Compact&M;FP<Compact>&pi;std::vector<double> g;std::vector<uint32_t> touched;std::vector<unsigned char> seen;std::unordered_map<uint64_t,int,KeyHash> choices;
+ Grad(Compact&m,FP<Compact>&p):M(m),pi(p),g(m.A.size()+m.GA.size()),seen(g.size()){}
+ void clear(){for(auto i:touched){g[i]=0;seen[i]=0;}touched.clear();choices.clear();}
+ void add(size_t i,double a){if(!seen[i]){seen[i]=1;touched.push_back(i);}g[i]+=a;}
+ void leaf(const State&s,double w){if(s.terminal()||!s.n||!w)return;int r=100-s.t,x=s.b*(N+1)+s.p,h=M.codec.hand(s);for(int k=0;k<15&&M.sub[h][k]>=0;k++){int c=M.sub[h][k];for(int j=0;j<M.Q;j++)add((size_t(x)*275+c)*M.Q+j,w*M.T[r*M.Q+j]);}for(int k=0;k<M.K;k++)for(int j=0;j<M.TG;j++)add(M.A.size()+(size_t(x)*M.K+k)*M.TG+j,w*M.PHI[h*M.K+k]*M.GT[r*M.TG+j]);}
+ void v(const State&s,int d,double w){if(s.terminal())return;if(!d){leaf(s,w);return;}auto key=M.codec.key(s);auto it=choices.find(key);int a=0;if(it!=choices.end())a=it->second;else{double best=-1e300;uint32_t seen=0;for(int j=0;j<=s.n;j++){int c=j?M.codec.idmap[s.h[j-1]]:0;if(seen&(1u<<c))continue;seen|=1u<<c;double q=pi.q1(s,j);if(q>best){best=q;a=j;}}choices.emplace(key,a);}q(s,a,d,w);}
+ void land(State s,int code,int d,double w){s.p=code&4095;if(s.terminal())return;if(!(code&4096)||s.n==5){v(s,d,w);return;}int count[23]={},rep[23]={},nn=__builtin_popcount(s.deck);uint32_t bits=s.deck;while(bits){int bit=__builtin_ctz(bits);bits&=bits-1;int c=M.codec.idmap[bit+1];count[c]++;rep[c]=bit;}for(int c=1;c<=22;c++)if(count[c]){State z=s;z.h[z.n++]=rep[c]+1;z.deck&=~(1u<<rep[c]);if(!z.deck)z.deck=0x3fffffff;v(z,d,w*count[c]/nn);}}
+ void q(const State&s,int a,int d,double w){State z=s;int id=0;if(a){id=z.h[a-1];for(int j=a;j<z.n;j++)z.h[j-1]=z.h[j];--z.n;}if(id&&CTYPE[id]!=2){land(z,CTYPE[id]==3?NEXT[s.p]:LAND[s.p+CVAL[id]+3],d-1,w);return;}for(int sm=2;sm<=12;sm++){int ways=6-abs(7-sm),dbl=!s.b&&(sm%2==0),code=id?LAND[s.p+CVAL[id]*sm+3]:ROLL[s.p*11+sm-2];if(ways-dbl){State y=z;y.t=s.t+!s.b;y.b=0;land(y,code,d-1,w*(ways-dbl)/36);}if(dbl){State y=z;y.t=s.t+1;y.b=1;land(y,code,d-1,w/36);}}}
+ void update(double error,double rate,double cap){double norm=0;for(auto i:touched)norm+=g[i]*g[i];double step=rate*std::clamp(error,-cap,cap)/std::max(.05,norm);for(auto i:touched){float&v=i<M.A.size()?M.A[i]:M.GA[i-M.A.size()];v-=step*g[i];}++M.revision;pi.cache.clear();}
+};

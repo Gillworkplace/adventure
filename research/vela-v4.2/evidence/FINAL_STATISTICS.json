@@ -1,0 +1,259 @@
+{
+  "selected": "hinge_k256_e1",
+  "candidate": {
+    "n": 100000,
+    "mean": 1878.13502,
+    "sd": 201.25850848963378,
+    "ci95": [
+      1876.887629762291,
+      1879.3824102377089
+    ]
+  },
+  "original_FULL100": {
+    "n": 100000,
+    "mean": 1878.03718,
+    "sd": 201.10642121914992,
+    "ci95": [
+      1876.7907323916384,
+      1879.2836276083617
+    ]
+  },
+  "paired_candidate_minus_FULL100": {
+    "n": 100000,
+    "mean": 0.09784,
+    "sd": 184.61518072732792,
+    "ci95": [
+      -1.0463957190280668,
+      1.2420757190280667
+    ]
+  },
+  "independent_candidate_minus_archived_FULL48": {
+    "delta": 0.0385999999998603,
+    "ci95": [
+      -1.7269329318493052,
+      1.8041329318490258
+    ],
+    "margin_points": 1.87809642,
+    "noninferior_at_0p1_percent": true,
+    "confirmed_improvement": false,
+    "method": "independent two-sample normal CI; FULL48 per-game data unavailable"
+  },
+  "archived_FULL48": {
+    "mean": 1878.09642,
+    "sd": 201.5907622673666,
+    "n": 100000,
+    "seed_base": 4070800000,
+    "source_sha256": "06980398949ea8788d49afa5811d5d1e49fa775b777202bf1d3594189a37b9d1"
+  },
+  "final_freeze_sha256": "883c4d64826370d4b13d76be01d6ca980e7c596712ea5f5a76f64f0ed3bec02a",
+  "protocol_sha256": "4b6c2a6a96f77e4679efc29f59b8722f8951a3a56c93ee8a0b9b458c300f35be",
+  "bank_audit": {
+    "ranges": [
+      {
+        "name": "train",
+        "seed_base": 3520000000,
+        "games": 512
+      },
+      {
+        "name": "validation",
+        "seed_base": 3520100000,
+        "games": 128
+      },
+      {
+        "name": "pilot",
+        "seed_base": 3520200000,
+        "games": 128
+      },
+      {
+        "name": "screen",
+        "seed_base": 3521000000,
+        "games": 10000
+      },
+      {
+        "name": "final",
+        "seed_base": 3522000000,
+        "games": 100000
+      },
+      {
+        "name": "archived FULL48/FULL100",
+        "seed_base": 4070800000,
+        "games": 100000
+      },
+      {
+        "name": "time_qgap train",
+        "seed_base": 3502900000,
+        "games": 512
+      },
+      {
+        "name": "time_qgap validation",
+        "seed_base": 3502910000,
+        "games": 128
+      },
+      {
+        "name": "time_qgap screen",
+        "seed_base": 3503000000,
+        "games": 10000
+      },
+      {
+        "name": "time_qgap reserved final",
+        "seed_base": 3504000000,
+        "games": 100000
+      },
+      {
+        "name": "JOINT2 pilot",
+        "seed_base": 3512900000,
+        "games": 128
+      },
+      {
+        "name": "JOINT2 screen",
+        "seed_base": 3513000000,
+        "games": 10000
+      },
+      {
+        "name": "JOINT2 final",
+        "seed_base": 3514000000,
+        "games": 100000
+      },
+      {
+        "name": "JOINT2 latency",
+        "seed_base": 3515000000,
+        "games": 32
+      },
+      {
+        "name": "JOINT2 winner extension",
+        "seed_base": 3516000000,
+        "games": 50000
+      },
+      {
+        "name": "redesign implementation parity; replayed policies, not independent score evidence",
+        "seed_base": 3529020000,
+        "games": 32
+      }
+    ],
+    "unique_mixed_seeds": 481600,
+    "mixed_seed_set_sha256": "9d9183b378e9b9bb41ad0a3e121db83a828063c55e1aab4e06b161c13075c6a8"
+  },
+  "shards": [
+    {
+      "name": "final_00_FULL100_original",
+      "csv_sha256": "91b6fbc99e5a402d61adc46085b261260bbdcf8ce6b984358ccf29df7e2f2d9b",
+      "n": 10000,
+      "seed_base": 3522000000
+    },
+    {
+      "name": "final_00_hinge_k256_e1",
+      "csv_sha256": "1abe4fb1c3cd79d58f523882ee836a8c6b6ef0f6047883acfc3af9066b211372",
+      "n": 10000,
+      "seed_base": 3522000000
+    },
+    {
+      "name": "final_01_FULL100_original",
+      "csv_sha256": "946b476a3efdba2eba65b338379ced2b5f55039264bf0e6e8e10b42c0b562d59",
+      "n": 10000,
+      "seed_base": 3522010000
+    },
+    {
+      "name": "final_01_hinge_k256_e1",
+      "csv_sha256": "a65422a24ed256a014748a9d974e7f952d9551b2a8c31381818ee18fad065318",
+      "n": 10000,
+      "seed_base": 3522010000
+    },
+    {
+      "name": "final_02_FULL100_original",
+      "csv_sha256": "162b0cdbf71f61325a1948b80c1907cf1ed1a77f5ae8e5f6f3c38945219347f9",
+      "n": 10000,
+      "seed_base": 3522020000
+    },
+    {
+      "name": "final_02_hinge_k256_e1",
+      "csv_sha256": "a0864c10f7abf70581f383733810e4d462c13f896d5ac12baf07a5634cf96019",
+      "n": 10000,
+      "seed_base": 3522020000
+    },
+    {
+      "name": "final_03_FULL100_original",
+      "csv_sha256": "e1b0fd5893616d3735a7086d931b5ed268290edcb74a9b74fd6c3dbb44457b3f",
+      "n": 10000,
+      "seed_base": 3522030000
+    },
+    {
+      "name": "final_03_hinge_k256_e1",
+      "csv_sha256": "3040057688cbea60d474c8991b45cd947676ef5704639550d789ca01768e91a1",
+      "n": 10000,
+      "seed_base": 3522030000
+    },
+    {
+      "name": "final_04_FULL100_original",
+      "csv_sha256": "871951332060d8fbbecebe40dd07923ed3d320776710b4ae6ff604f37ef8281b",
+      "n": 10000,
+      "seed_base": 3522040000
+    },
+    {
+      "name": "final_04_hinge_k256_e1",
+      "csv_sha256": "63cd7a97bdb841cc216d27b1273aab44a703d1c0380a186bf3c469e800b6c699",
+      "n": 10000,
+      "seed_base": 3522040000
+    },
+    {
+      "name": "final_05_FULL100_original",
+      "csv_sha256": "46be530ccd157fc9ad7fdc2b2627362e74220f3bd29f7489b8ccdf0cca556f28",
+      "n": 10000,
+      "seed_base": 3522050000
+    },
+    {
+      "name": "final_05_hinge_k256_e1",
+      "csv_sha256": "f6f6ca04f0c1a8f35d031449297cbe0576ce0a8d8c3dbb0565b80fad56d134a9",
+      "n": 10000,
+      "seed_base": 3522050000
+    },
+    {
+      "name": "final_06_FULL100_original",
+      "csv_sha256": "17756ad619f81b8e4b8b9b5507e3640bac3604df38cd46176f13cde9a90bb98b",
+      "n": 10000,
+      "seed_base": 3522060000
+    },
+    {
+      "name": "final_06_hinge_k256_e1",
+      "csv_sha256": "74b19127136a5f5c1dc3f4107a23c597c8cd8bc96290f6f89f9b8c7690887be9",
+      "n": 10000,
+      "seed_base": 3522060000
+    },
+    {
+      "name": "final_07_FULL100_original",
+      "csv_sha256": "6d04543adc8128838f2054c03e502ac8c0ab7e477690ff60a04fae70705d5ef7",
+      "n": 10000,
+      "seed_base": 3522070000
+    },
+    {
+      "name": "final_07_hinge_k256_e1",
+      "csv_sha256": "3ed9c5452d3688edd49cca4fc3cb6bd696001db780de7fde24ef184f0eae0c23",
+      "n": 10000,
+      "seed_base": 3522070000
+    },
+    {
+      "name": "final_08_FULL100_original",
+      "csv_sha256": "417740479d2f475fc9b3085153c6b33d650cbd502aa983d4b0350026ea1973ff",
+      "n": 10000,
+      "seed_base": 3522080000
+    },
+    {
+      "name": "final_08_hinge_k256_e1",
+      "csv_sha256": "57303190fd976c19976805fbf2eb10f6bdd2116ae88c1ff7b9aca36e1d6b4053",
+      "n": 10000,
+      "seed_base": 3522080000
+    },
+    {
+      "name": "final_09_FULL100_original",
+      "csv_sha256": "5628107f26851bba561660bd1d6cab8b55ddd1d042024d4c5ec7b5404388bdf3",
+      "n": 10000,
+      "seed_base": 3522090000
+    },
+    {
+      "name": "final_09_hinge_k256_e1",
+      "csv_sha256": "9cbd1094529c292d1f3b799defbc38fe055272f346df3661d5d8dda2c8b05435",
+      "n": 10000,
+      "seed_base": 3522090000
+    }
+  ],
+  "created_unix": 1790635228.969737
+}

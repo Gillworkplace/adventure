@@ -1,7 +1,7 @@
 import { fetchJson } from "../../platform/requests.js";
 import { MODEL_ORIGIN, isHttpsOrigin, isLocalModelSource, modelPath } from "./source.js";
-export const MODEL_ID = "vela-v4.1";
-export const MODEL_NAME = "VELA v4.1";
+export const MODEL_ID = "vela-v4.2";
+export const MODEL_NAME = "VELA v4.2";
 export const MODEL_URL = new URL(`../../../public/models/${MODEL_ID}/`, import.meta.url);
 export const LOCAL_MODEL = isLocalModelSource(MODEL_URL);
 const hash = /^[a-f0-9]{64}$/;

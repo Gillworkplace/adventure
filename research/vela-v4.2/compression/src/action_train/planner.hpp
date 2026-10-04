@@ -1,0 +1,12 @@
+// Student planner is a mechanically templated copy of the frozen FULL100 reference.
+#include "../../include/exact-endgame.hpp"
+#include "../../include/deck-coefficients.hpp"
+#include <windows.h>
+#include <atomic>
+#include <chrono>
+#include <iomanip>
+#include <mutex>
+#include <thread>
+#include <unordered_map>
+#include "compact.hpp"
+template<class Model> struct FP{Model&M;int depth=2;double qs[6]={}; double q1(const State&s,int a){return Q(s,a,1);}struct DK{uint64_t k;unsigned char d;bool operator==(const DK&o)const{return k==o.k&&d==o.d;}};struct DH{size_t operator()(const DK&x)const{return KeyHash{}(x.k^(uint64_t(x.d)*0x9e3779b97f4a7c15ULL));}};std::unordered_map<DK,double,DH>cache;explicit FP(Model&m,bool):M(m){cache.reserve(1<<16);}double V(const State&s,int d){if(s.terminal())return s.p;if(d==0)return M.leaf(s);DK k{M.codec.key(s),(unsigned char)d};auto it=cache.find(k);if(it!=cache.end())return it->second;double best=-1e300;uint32_t seen=0;for(int a=0;a<=s.n;a++){int c=a?M.codec.idmap[s.h[a-1]]:0;if(seen&(1u<<c))continue;seen|=1u<<c;best=std::max(best,Q(s,a,d));}cache.emplace(k,best);return best;}double landed(State z,int code,int d){z.p=code&4095;if(z.terminal())return z.p;if(!(code&4096)||z.n==5)return V(z,d);int count[23]={},rep[23]={};uint32_t bits=z.deck;while(bits){int bit=__builtin_ctz(bits);bits&=bits-1;int c=M.codec.idmap[bit+1];count[c]++;rep[c]=bit;}int nn=__builtin_popcount(z.deck);long double sum=0;for(int c=1;c<=22;c++)if(count[c]){State y=z;int bit=rep[c];y.h[y.n++]=bit+1;y.deck&=~(1u<<bit);if(!y.deck)y.deck=0x3fffffff;sum+=(long double)count[c]*V(y,d);}return (double)(sum/nn);}double Q(const State&s,int a,int d){State z=s;int id=0;if(a){id=z.h[a-1];for(int j=a;j<z.n;j++)z.h[j-1]=z.h[j];--z.n;}if(id&&CTYPE[id]!=2)return landed(z,CTYPE[id]==3?NEXT[s.p]:LAND[s.p+CVAL[id]+3],d-1);long double sum=0;for(int sm=2;sm<=12;sm++){int ways=6-abs(7-sm),dbl=!s.b&&(sm%2==0),code=id?LAND[s.p+CVAL[id]*sm+3]:ROLL[s.p*11+sm-2];if(ways-dbl){State y=z;y.t=s.t+!s.b;y.b=0;sum+=(ways-dbl)*landed(y,code,d-1);}if(dbl){State y=z;y.t=s.t+1;y.b=1;sum+=landed(y,code,d-1);}}return (double)(sum/36.0L);}int act(const State&root){if(!root.n)return 0;State s=root;s.t=100-std::min(100,100-root.t);cache.clear();std::fill(qs,qs+6,-1e300);double best=-1e300;int ans=0;uint32_t seen=0;for(int a=0;a<=s.n;a++){int c=a?M.codec.idmap[s.h[a-1]]:0;if(seen&(1u<<c))continue;seen|=1u<<c;double x=qs[a]=Q(s,a,depth);if(x>best){best=x;ans=a;}}return ans;}};

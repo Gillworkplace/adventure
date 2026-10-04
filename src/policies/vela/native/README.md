@@ -1,10 +1,10 @@
-# VELA-v4.1 WASM 빌드
+# VELA v4.2 WASM 빌드
 
-이 폴더에는 VELA-v4.1의 C++ 원본과 환경 테이블이 있습니다. 빌드에는 Python 3와 **Emscripten 4.0.23**이 필요합니다. 아래 명령은 프로젝트 루트에서 실행합니다.
+동결된 COMPACT100 Hinge `hinge_k256_e1.bin`의 브라우저 이식 소스입니다. 연구 원본의 계산 순서와 동점 선택을 유지하며 `OPT=4228`, `base`, `gamma=0`, 2-step expectimax, 실제 비복원 덱과 DeckPotential β=0.6을 사용합니다. H24/Four 보정이나 추가 정책 튜닝은 없습니다.
 
-## 도구 준비
+## 빌드
 
-Git과 `python` 명령을 사용할 수 있는 환경에서 SDK를 처음 설치할 때:
+Python 3와 Emscripten **4.0.23**을 준비합니다. SDK는 `.tools/emsdk-main/`에 설치합니다.
 
 ```powershell
 git clone https://github.com/emscripten-core/emsdk.git .tools/emsdk-main
@@ -12,31 +12,25 @@ python .tools/emsdk-main/emsdk.py install 4.0.23
 python .tools/emsdk-main/emsdk.py activate 4.0.23
 ```
 
-이미 해당 버전의 SDK가 준비되어 있으면 이 단계는 생략합니다.
-
-## 빌드
+SDK가 준비됐다면 설치를 생략합니다. Release의 `model.bin.gz`를 압축을 풀지 않고 `public/models/vela-v4.2/`에 넣은 뒤 프로젝트 루트에서 실행합니다.
 
 ```powershell
 python scripts/vela/build.py
 ```
 
-다음 파일을 생성하거나 갱신합니다.
+빌드는 `vela.mjs`, `vela.wasm`을 생성하고 manifest의 실행 파일 해시를 갱신합니다. C++20, `-ffp-contract=off`, 최대 WASM 메모리 512 MiB, 스택 2 MiB를 사용합니다. fast-math는 사용하지 않습니다.
 
-- `src/policies/vela/vela.mjs`: JS 로더
-- `src/policies/vela/vela.wasm`: WASM 실행 파일
-- `public/models/vela-v4.1/manifest.json`: 실행 파일 크기와 SHA-256 등 메타데이터
+## 모델·상태 계약
 
-manifest의 크기·해시를 갱신하므로 `public/models/vela-v4.1/model.bin.gz`가 필요합니다. 이 파일은 COMPACT48 모델 바이너리를 gzip으로 압축한 파일입니다. 배포 시 실행 파일 두 개와 manifest, 모델을 같은 버전으로 맞춥니다.
+- 모델: 91,179,876 bytes, SHA-256 `3b25cacd47d1de76ef0a6d6ba60d0cf3e4ce6fcc946c3bfa305cdd3a04a879e9`.
+- gzip 배포 파일: 68,320,365 bytes. FULL100 원본은 런타임에 필요하지 않습니다.
+- 입력: `[position, paidDiceUsed, bonusRoll, handCount, h0, h1, h2, h3, h4, deckMask]`. 카드 ID는 물리 ID 1~30, 덱은 실제 잔여 30비트 마스크입니다.
+- 반환: `0=주사위`, `1..handCount=입력 손패 슬롯`. 지평 제한은 원래 planner가 담당합니다.
+- `_values_ptr()`의 값은 행동 평가값이며 최종 점수 예측으로 표시하지 않습니다.
+- manifest의 `scorePredictor:true`로 `public/models/vela-v4.2/predictor.json`을 읽습니다. Hinge 전용 예측기의 모델 SHA를 확인한 뒤 선택된 행동 Q로 점수를 예측합니다. 예측기를 읽지 못하거나 호환되지 않으면 추천은 유지하고 점수 예측만 생략합니다.
 
-## 소스 구성
+## 출처·검증
 
-- `bridge.cpp`: 브라우저에서 호출하는 함수와 입출력
-- `core.hpp`: 상태와 손패 클래스 인코딩
-- `compact.hpp`: COMPACT48 모델 읽기와 가치 계산
-- `inference.hpp`: 2-step expectimax 행동 평가
-- `tables.hpp`: 환경 전이 테이블
-- `deck-coefficients.hpp`: 잔여 덱 보정 계수
+연구 원본 `adventure_vela/research/value_compression/rethink100_20260929/src/runtime/`을 메모리 입력 및 WASM 환경에 맞춰 이식한 기존 검증 소스를 승격했습니다. 압축·planner의 산술은 변경하지 않았습니다. 원본 출처 해시는 [연구 패키지](../../../../research/vela-v4.2/README.md)의 `evidence/prior-web-build.json`에 기록돼 있습니다.
 
-빌드 스크립트는 `scripts/vela/build.py`, manifest 갱신 코드는 `scripts/vela/delivery.py`에 있습니다.
-
-COMPACT48의 가치값을 그대로 사용하며, 실제 잔여 덱과 DeckPotential β=0.6을 반영합니다. 입력 손패는 물리 카드 ID 1~30, 반환 행동은 0(주사위) 또는 1~5(손패 슬롯)입니다.
+기존 native 대비 WASM 검증은 5,460상태에서 행동 불일치 0, 최대 Q 오차 0입니다. 승격한 실행 파일도 별도로 다시 검증합니다. 관측 WASM heap은 319,225,856 bytes이며 브라우저 전체 메모리나 모든 상태의 최대 사용량은 아닙니다.

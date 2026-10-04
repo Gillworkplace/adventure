@@ -1,6 +1,11 @@
 import { diagnostics } from "../platform/report.js";
 import { RULES_VERSION } from "../rules/index.js";
 import { POLICY_VERSION } from "../policies/versions.js";
+import { MODEL_ID } from "../compute/vela/model.js";
+
+const activePolicyVersion = coordinator => !coordinator.enabled ? null
+  : coordinator.settings.model === "vela" ? coordinator.vela?.info?.manifest?.id ?? MODEL_ID
+  : POLICY_VERSION;
 
 const modelInfo = info => info ? {
   id: info.manifest?.id, version: info.manifest?.version, sha256: info.manifest?.sha256,
@@ -10,7 +15,7 @@ const modelInfo = info => info ? {
 export function attachDiagnostics(session, coordinator, assets) {
   diagnostics.provide("game", () => session.view);
   diagnostics.provide("calculation", () => ({
-    rulesVersion: RULES_VERSION, policyVersion: POLICY_VERSION,
+    rulesVersion: RULES_VERSION, policyVersion: activePolicyVersion(coordinator),
     settings: coordinator.settings, enabled: coordinator.enabled, requestId: coordinator.requestId,
     result: coordinator.result, gpuSupport: coordinator.gpuSupport, velaSupport: coordinator.velaSupport,
     model: modelInfo(coordinator.vela?.info), preparedModel: modelInfo(coordinator.preparedVela?.info), restoreModel: modelInfo(coordinator.restoreVela),
@@ -33,5 +38,5 @@ export function attachDiagnostics(session, coordinator, assets) {
       action: control.dataset.nav || control.dataset.cardAction,
       choice: ["model", "engine", "usage", "workers", "cache"].includes(control.name) ? { name: control.name, value: control.value } : null });
   }, true);
-  diagnostics.record("game.ready", { rulesVersion: RULES_VERSION, policyVersion: POLICY_VERSION, state: session.state });
+  diagnostics.record("game.ready", { rulesVersion: RULES_VERSION, policyVersion: activePolicyVersion(coordinator), state: session.state });
 }

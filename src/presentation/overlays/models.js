@@ -48,7 +48,7 @@ export function showModelSelection(coordinator, { initial = false, selectedModel
       hint.textContent = compatibilityMessage(support.code).title;
       showSupport(detail, support.code, { retry: () => coordinator.checkVela(true), target: "VELA 사용 가능 여부", label: "이유·해결 방법" });
       if (selected === "vela") { selected = "x36"; body.querySelector('[name=model][value=x36]').checked = true; }
-    } else { hint.textContent = localModel ? "이 PC의 모델 불러오기 · 약 32 MB" : "첫 사용 시 모델 전체 다운로드 · 약 32 MB"; detail.replaceChildren(); }
+    } else { hint.textContent = localModel ? "이 PC의 모델 불러오기 · 약 68 MB" : "첫 사용 시 모델 전체 다운로드 · 약 68 MB"; detail.replaceChildren(); }
     body.querySelector(".primary").disabled = deletingCache || selected === "vela" && input.disabled;
     input.closest(".model-option").classList.toggle("has-support", !!detail.firstElementChild);
     paintChoices(body);
@@ -70,10 +70,10 @@ export function showModelSelection(coordinator, { initial = false, selectedModel
     heading.textContent = "모델 선택";
     body.innerHTML = `<p class="model-intro">게임의 다음 선택을 도와줄 모델을 고르세요.</p>
       <div class="model-options" role="radiogroup" aria-label="모델">
-        <div class="model-option"><label class="model-choice"><input type="radio" name="model" value="vela"><span class="model-choice-copy"><strong>VELA <small>v4.1</small></strong><span>CPU로 바로 판단</span>${comparison("vela")}<small class="vela-availability">사용 가능 여부 확인 중</small></span><span class="model-check" aria-hidden="true"></span></label><div class="model-support vela-support"></div></div>
+        <div class="model-option"><label class="model-choice"><input type="radio" name="model" value="vela"><span class="model-choice-copy"><strong>VELA <small>v4.2</small></strong><span>CPU로 바로 판단</span>${comparison("vela")}<small class="vela-availability">사용 가능 여부 확인 중</small></span><span class="model-check" aria-hidden="true"></span></label><div class="model-support vela-support"></div></div>
         <label class="model-choice"><input type="radio" name="model" value="x36"><span class="model-choice-copy"><strong>X36 <small>G3</small></strong><span>시뮬레이션으로 선택 비교</span>${comparison("x36")}<small>GPU 또는 CPU · 사용량 선택 가능</small></span><span class="model-check" aria-hidden="true"></span></label>
       </div>
-      <p class="model-comparison-note">참고값 · VELA CPU / G3 GPU 높음 · 기기·상태별 차이</p>
+      <p class="model-comparison-note">참고값 · 모델별 평가 표본이 다름 · 기기·상태별 차이</p>
       <div class="model-cache-tools" ${!localModel && coordinator.velaCacheAllowed ? "" : "hidden"}><span>${localModel ? "이전에 저장한 모델이 있습니다." : "이 브라우저에 모델 저장을 허용했습니다."}</span><button type="button" class="model-forget">${localModel ? "저장된 모델 삭제" : "저장 해제·삭제"}</button></div>
       <footer><a class="legacy-access" aria-label="기존 화면으로 이동"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="M3 7h14"/></svg><span>기존 화면</span><span class="legacy-arrow" aria-hidden="true">→</span></a><span></span><button type="button" class="primary">다음</button><button type="button" class="model-cancel">취소</button></footer>`;
     body.querySelector(".legacy-access").href = new URL("../../../old/v1/", import.meta.url).href + location.search + location.hash;

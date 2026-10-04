@@ -1,0 +1,39 @@
+{
+  "modelSha256": "3b25cacd47d1de76ef0a6d6ba60d0cf3e4ce6fcc946c3bfa305cdd3a04a879e9",
+  "policy": "base",
+  "opt": 4228,
+  "gamma": 0,
+  "sources": {
+    "C:\\Users\\User\\Desktop\\\ubbf8\ub974\\\uac1c\uc778\\codex\\adventure_vela\\research\\value_compression\\rethink100_20260929\\src\\runtime\\compact_factor.hpp": "4e64a944c711220716b2bf7972c05b17a9b49262f4a37028205c9b893a486a33",
+    "C:\\Users\\User\\Desktop\\\ubbf8\ub974\\\uac1c\uc778\\codex\\adventure_vela\\research\\value_compression\\rethink100_20260929\\src\\runtime\\engine_factor.hpp": "4b435271b0f7bf71c86b5984f95afc54fcba06bc83cca989cde05d3a01035b39",
+    "C:\\Users\\User\\Desktop\\\ubbf8\ub974\\\uac1c\uc778\\codex\\adventure_vela\\research\\value_compression\\rethink100_20260929\\src\\runtime\\hd_tail.hpp": "1241034d202ac88f67fbea9b521d9ed32f5f376dca65886132b87ab5f858c0d8",
+    "C:\\Users\\User\\Desktop\\\ubbf8\ub974\\\uac1c\uc778\\codex\\adventure_vela\\research\\value_compression\\rethink100_20260929\\src\\runtime\\exact_dp.hpp": "9dc56d0d0c82c82194aad3b78b820dabdf5d58fa767b648a4b677d2c7a466f9a",
+    "C:\\Users\\User\\Desktop\\\ubbf8\ub974\\\uac1c\uc778\\codex\\adventure_vela\\research\\value_compression\\rethink100_20260929\\src\\runtime\\rethink_runner.cpp": "f779acda911ec47e78f08d61772114d9e821474a78488306b5e472687cfabef8",
+    "C:\\Users\\User\\Desktop\\\ubbf8\ub974\\\uac1c\uc778\\codex\\adventure_vela\\bak\\legacy_20260926\\S2_20260919_RDC\\vendor\\research\\core.hpp": "3d6fb86446f1839ee29f6cc4ce93d342f9d5d54d5c407b0024aef4b730a1f083",
+    "C:\\Users\\User\\Desktop\\\ubbf8\ub974\\\uac1c\uc778\\codex\\adventure_vela\\bak\\legacy_20260926\\S2_20260919_RDC\\vendor\\research\\exact-endgame.hpp": "82b523b87bcd00cf10a2295ec404faf2aa30fe1367c8f2684f58f1e20e8e8573",
+    "C:\\Users\\User\\Desktop\\\ubbf8\ub974\\\uac1c\uc778\\codex\\adventure_vela\\bak\\legacy_20260926\\S2_20260919_RDC\\vendor\\research\\tables.hpp": "7ad2d05e6acde72688307358849599e7852c01863c57bae5f81f4b05a2db0188",
+    "C:\\Users\\User\\Desktop\\\ubbf8\ub974\\\uac1c\uc778\\codex\\adventure_vela\\bak\\legacy_20260926\\S2_20260919_RDC\\vendor\\research\\deck-coefficients.hpp": "3fbdd938e2363562d0d5658b174deab8da45b3c6b853ca7e8c9c807e001b2b6d"
+  },
+  "generated": {
+    "compact_factor.hpp": "fc62451c591a5d7424a7e8d14265205ec00ccedc48c6dad7a193fe8da9504a39",
+    "core.hpp": "683342378fd2ae94e5cf998b0c5ef28edc51847d3746ba6dabce53ba78b039b9",
+    "deck-coefficients.hpp": "3fbdd938e2363562d0d5658b174deab8da45b3c6b853ca7e8c9c807e001b2b6d",
+    "engine_factor.hpp": "cf22f93b2b1a667a0a69a5f87a1fc03cc7d2f60a72a4641a8ad7431c79d3834d",
+    "exact_dp.hpp": "9dc56d0d0c82c82194aad3b78b820dabdf5d58fa767b648a4b677d2c7a466f9a",
+    "hd_tail.hpp": "1241034d202ac88f67fbea9b521d9ed32f5f376dca65886132b87ab5f858c0d8",
+    "hinge.hpp": "52d914aeb2a11ebad3a2f79a032284527ed3ad06a3471f68878d8b774738fe03",
+    "tables.hpp": "7ad2d05e6acde72688307358849599e7852c01863c57bae5f81f4b05a2db0188"
+  },
+  "runtime": {
+    "module": {
+      "file": "/__test_compact100_hinge/hinge.mjs",
+      "bytes": 20085,
+      "sha256": "34a4fdbb1d5f679d785ccc53eb59b2d14fce1a7b2b0b33dcda76f43407152157"
+    },
+    "wasm": {
+      "file": "/__test_compact100_hinge/hinge.wasm",
+      "bytes": 397304,
+      "sha256": "2cc99ef5051c935472ccc6110d2e7b91e33d8aa9c69eecc688a0574357e7af38"
+    }
+  }
+}

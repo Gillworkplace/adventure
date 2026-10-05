@@ -1982,12 +1982,12 @@ function eventCanvasClick(e) {
   } else if (isInsideRegion(x, y, REGION_BTN_ACCURACY)) {
     showComputeModeModal(() => calcEx());
   } else if (isInsideRegion(x, y, REGION_BTN_CHANGEMODE)) {
-    if (confirm(`要将运行模式切换为${env.autoProcess ? '手动' : '自动'}吗？`)) {
+    if (confirm(`要将运行模式切换为${env.autoProcess ? '手动' : '本地试玩'}吗？`)) {
       env.changeMode();
       done = false;
       calcEx();
       if (env.autoProcess) {
-        alert('运行模式已切换为自动模式。')
+        alert('运行模式已切换为本地试玩模式。')
       } else {
         alert('运行模式已切换为手动模式。')
       }
@@ -5235,7 +5235,7 @@ function initUsageOverlay() {
       lines: [
         { html: '<span style="font-weight:700;color:#1d4ed8;">手动模式</span>：骰子按钮用于切换是否双骰。' },
         { html: '用左侧的 <span style="font-weight:700;color:#1d4ed8;">+2~+12 按钮</span>可按想要的格数直接移动。' },
-        { html: '<span style="font-weight:700;color:#1d4ed8;">自动模式</span>：用骰子按钮实际推进，+2~+12 按钮会被禁用。' }
+        { html: '<span style="font-weight:700;color:#1d4ed8;">本地试玩模式</span>：用骰子按钮实际推进，+2~+12 按钮会被禁用。' }
       ],
       region: {
         x1: REGION_DICE_MOVE.x1,
@@ -5268,16 +5268,16 @@ function initUsageOverlay() {
       lines: [
         { html: '用 <span style="font-weight:700;color:#1d4ed8;">?</span> 按钮打开和关闭卡牌获取信息。' },
         { html: '在列表中点击可切换是否已获得，<span style="font-weight:700;color:#1d4ed8;">右键点击</span>可直接标记为已获得。' },
-        { html: '在<span style="font-weight:700;color:#1d4ed8;">自动模式</span>下，修改卡牌信息和强制获取会受到限制。' }
+        { html: '在<span style="font-weight:700;color:#1d4ed8;">本地试玩模式</span>下，修改卡牌信息和强制获取会受到限制。' }
       ],
       region: REGION_BTN_CARDINFO
     },
     {
       id: 'mode',
-      title: '手动 / 自动模式',
+      title: '手动 / 本地试玩模式',
       lines: [
         { html: '<span style="font-weight:700;color:#1d4ed8;">手动模式</span>用于测试，可直接调整位置、卡牌和骰子使用次数。' },
-        { html: '<span style="font-weight:700;color:#1d4ed8;">自动模式</span>像实际游玩一样自动判断骰子和卡牌并推进。' },
+        { html: '<span style="font-weight:700;color:#1d4ed8;">本地试玩模式</span>像实际游玩一样自动判断骰子和卡牌并推进。' },
         { html: '点击底部区域或按 <span style="font-weight:700;color:#1d4ed8;">Ctrl + E</span> 可修改<span style="font-weight:700;color:#1d4ed8;">骰子使用次数</span>。' }
       ],
       region: REGION_BTN_CHANGEMODE

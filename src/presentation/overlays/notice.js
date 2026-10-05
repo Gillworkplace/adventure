@@ -57,7 +57,7 @@ export function showNotice({ onClose } = {}) {
           <strong class="notice-title">自由切换模式 & 帮助</strong>
         </div>
         <p class="notice-desc">
-          通过底部<strong>[切换模式]</strong>按钮可随时轻松切换<strong>手动 / 自动 / 辅助</strong>模式。点击左上角的喇叭图标可随时再次查看本公告。
+          通过底部<strong>[切换模式]</strong>按钮可随时轻松切换<strong>手动 / 本地试玩 / 辅助</strong>模式。点击左上角的喇叭图标可随时再次查看本公告。
         </p>
       </section>
     </div>

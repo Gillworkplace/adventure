@@ -16,3 +16,4 @@ research/vela-v4.2/compression/tmp/
 research/vela-v4.2/compression/src/action_train/*.exe
 research/vela-v4.2/compression/src/runtime/*.exe
 research/vela-v4.2/**/__pycache__/
+scripts/capture/*.dll

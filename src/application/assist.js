@@ -1,4 +1,5 @@
 import { captureScreen, screenCaptureSupport } from "../platform/screen-capture.js";
+import { localCaptureSupport, listLocalWindows, captureLocalWindow } from "../platform/local-capture.js";
 import { diagnostics } from "../platform/report.js";
 import { ScreenReader } from "../platform/screen-reader.js";
 import { AssistTracker } from "./assist-tracker.js";
@@ -129,41 +130,7 @@ export class Assist extends EventTarget {
       candidate = await captureScreen();
       if (this.disposed || epoch !== this.epoch) { stopTracks(candidate); return false; }
       for (const track of candidate.getAudioTracks()) { track.stop(); candidate.removeTrack(track); }
-      const track = candidate.getVideoTracks()[0];
-      if (!track || track.readyState !== "live" || !candidate.active)
-        throw new DOMException("Inactive capture", "NotReadableError");
-      this.release();
-      this.stream = candidate;
-      const ended = () => {
-        if (this.stream !== candidate) return;
-        this.release();
-        this.publish(this.status === "requesting" ? "requesting" : "disconnected");
-      };
-      const changed = () => {
-        if (this.stream === candidate && this.status !== "requesting") {
-          if (track.muted) this.unreadable("stale");
-          this.publish(this.restingStatus());
-        }
-      };
-      track.addEventListener("ended", ended);
-      candidate.addEventListener("inactive", ended);
-      track.addEventListener("mute", changed);
-      track.addEventListener("unmute", changed);
-      this.unbindStream = () => {
-        track.removeEventListener("ended", ended);
-        candidate.removeEventListener("inactive", ended);
-        track.removeEventListener("mute", changed);
-        track.removeEventListener("unmute", changed);
-      };
-      this.session.execute("mode", "assist");
-      this.reader = this.createReader(candidate, frame => {
-        if (this.stream === candidate && !track.muted && this.session.mode === "assist") this.read(frame);
-      }, issue => { if (this.stream === candidate) this.unreadable(issue); },
-      () => this.tracker.verified && this.tracker.state ? { position: this.tracker.state.position,
-        characterId: this.tracker.profileId ?? this.tracker.characterAnchor?.id } : null,
-      frame => { if (this.stream === candidate && !track.muted && this.session.mode === "assist") this.rememberFrame(frame); });
-      this.publish(this.restingStatus());
-      return true;
+      return this.wire(candidate, epoch);
     } catch (error) {
       if (candidate && this.stream === candidate) this.release();
       else stopTracks(candidate);
@@ -173,6 +140,79 @@ export class Assist extends EventTarget {
       this.publish(this.restingStatus(), issue);
       return false;
     }
+  }
+
+  async connectLocal(hwnd) {
+    if (this.disposed || this.status === "requesting") return false;
+    if (!localCaptureSupport().available || !Number.isInteger(hwnd) || hwnd <= 0) {
+      this.publish(this.restingStatus(), "capture");
+      return false;
+    }
+    const epoch = ++this.epoch;
+    this.publish("requesting");
+    let candidate;
+    try {
+      candidate = await captureLocalWindow({ hwnd });
+      if (this.disposed || epoch !== this.epoch) { stopTracks(candidate); return false; }
+      return this.wire(candidate, epoch);
+    } catch (error) {
+      if (candidate && this.stream === candidate) this.release();
+      else stopTracks(candidate);
+      if (this.disposed || epoch !== this.epoch) return false;
+      this.publish(this.restingStatus(), "capture");
+      return false;
+    }
+  }
+
+  async refreshLocalWindows(signal) {
+    if (!localCaptureSupport().available) { this.localWindows = null; return false; }
+    try {
+      const windows = await listLocalWindows(signal);
+      if (signal?.aborted) return false;
+      this.localWindows = windows;
+      return true;
+    } catch {
+      this.localWindows = null;
+      return false;
+    }
+  }
+
+  wire(candidate, epoch) {
+    const track = candidate.getVideoTracks()[0];
+    if (!track || track.readyState !== "live" || !candidate.active)
+      throw new DOMException("Inactive capture", "NotReadableError");
+    this.release();
+    this.stream = candidate;
+    const ended = () => {
+      if (this.stream !== candidate) return;
+      this.release();
+      this.publish(this.status === "requesting" ? "requesting" : "disconnected");
+    };
+    const changed = () => {
+      if (this.stream === candidate && this.status !== "requesting") {
+        if (track.muted) this.unreadable("stale");
+        this.publish(this.restingStatus());
+      }
+    };
+    track.addEventListener("ended", ended);
+    candidate.addEventListener("inactive", ended);
+    track.addEventListener("mute", changed);
+    track.addEventListener("unmute", changed);
+    this.unbindStream = () => {
+      track.removeEventListener("ended", ended);
+      candidate.removeEventListener("inactive", ended);
+      track.removeEventListener("mute", changed);
+      track.removeEventListener("unmute", changed);
+    };
+    this.session.execute("mode", "assist");
+    this.reader = this.createReader(candidate, frame => {
+      if (this.stream === candidate && !track.muted && this.session.mode === "assist") this.read(frame);
+    }, issue => { if (this.stream === candidate) this.unreadable(issue); },
+    () => this.tracker.verified && this.tracker.state ? { position: this.tracker.state.position,
+      characterId: this.tracker.profileId ?? this.tracker.characterAnchor?.id } : null,
+    frame => { if (this.stream === candidate && !track.muted && this.session.mode === "assist") this.rememberFrame(frame); });
+    this.publish(this.restingStatus());
+    return true;
   }
 
   cancelPending() {

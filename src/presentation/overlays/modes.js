@@ -7,7 +7,7 @@ const icons = {
   automatic: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 8h.01M16 8h.01M12 12h.01M8 16h.01M16 16h.01"/>',
 };
 const icon = name => `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[name]}</svg>`;
-const names = { assist: "辅助", manual: "手动", automatic: "自动" };
+const names = { assist: "辅助", manual: "手动", automatic: "本地试玩" };
 const connectionLabels = {
   idle: "请连接画面", requesting: "正在选择画面", connected: "画面已连接",
   paused: "画面已暂停", disconnected: "连接已断开",
@@ -58,7 +58,7 @@ export function showModes(session, assist, { screen = false, voice = null } = {}
         ${[
           ["assist", "读取游戏画面，自动更新状态与推荐", "实际游戏请自行操作。"],
           ["manual", "手动输入实际游戏的结果", ""],
-          ["automatic", "按实际游戏规则直接游玩", "不会代替你操作实际游戏。"],
+          ["automatic", "在应用内按实际游戏规则试玩", "不会代替你操作实际游戏。"],
         ].map(([mode, description, note]) => `
           <button type="button" class="mode-choice" data-mode="${mode}" ${session.mode === mode ? 'aria-current="true"' : ""}>
             <span class="mode-icon">${icon(mode)}</span>
@@ -96,6 +96,14 @@ export function showModes(session, assist, { screen = false, voice = null } = {}
           <li><strong>连接管理</strong><span>小预览窗口可以拖动移动或折叠。关闭此窗口后共享仍会继续。点击“断开连接”或切换到其他模式会结束共享，原有游戏状态会保留。</span></li>
         </ol>
       </details>
+      <details class="assist-guide assist-local" hidden>
+        <summary>本地捕获（无需浏览器共享）</summary>
+        <div class="assist-local-row">
+          <select class="assist-local-window" aria-label="选择要抓取的窗口"></select>
+          <button type="button" data-local-connect>本地连接</button>
+        </div>
+        <p>由本地服务器直接抓取所选窗口的画面，可用于不支持屏幕共享的浏览器。目标窗口必须保持可见且不被其他窗口遮挡；点击“断开连接”会结束抓取。</p>
+      </details>
       <p class="assist-privacy">所选画面只在此浏览器中查看，不会录制或传输。</p>
       <footer><button type="button" class="primary" data-connect>连接画面</button><button type="button" data-rescan hidden>重新确认牌堆</button><button type="button" data-disconnect hidden>断开连接</button><button type="button" data-manual>切换到手动</button></footer>`;
     video = body.querySelector("video");
@@ -106,6 +114,15 @@ export function showModes(session, assist, { screen = false, voice = null } = {}
         node.close();
       }
     };
+    const localConnect = body.querySelector("[data-local-connect]");
+    localConnect.onclick = async () => {
+      const hwnd = Number(body.querySelector(".assist-local-window").value);
+      if (await assist.connectLocal(hwnd)) {
+        if (voice && !voice.enabled) node.addEventListener("close", () => showVoiceSettings(voice), { once: true });
+        node.close();
+      }
+    };
+    assist.refreshLocalWindows().then(ok => { if (ok && pane === "screen" && node.open) renderLocalChoices(); });
     body.querySelector("[data-rescan]").onclick = () => { assist.rescan(); node.close(); };
     body.querySelector("[data-disconnect]").onclick = () => assist.disconnect();
     body.querySelector("[data-manual]").onclick = () => choose("manual");
@@ -113,13 +130,34 @@ export function showModes(session, assist, { screen = false, voice = null } = {}
     (body.querySelector("[data-connect]:not(:disabled)") || body.querySelector("[data-manual]")).focus({ preventScroll: true });
   }
 
+  function renderLocalChoices() {
+    const section = body.querySelector(".assist-local");
+    const select = body.querySelector(".assist-local-window");
+    if (!section || !select) return;
+    const windows = (assist.localWindows || [])
+      .filter(w => w.width >= 400 && w.height >= 300 && w.hwnd > 0)
+      .sort((a, b) => (b.width * b.height) - (a.width * a.height));
+    if (!windows.length) return;
+    section.hidden = false;
+    section.open = true;
+    select.replaceChildren(...windows.map(w => {
+      const option = document.createElement("option");
+      option.value = String(w.hwnd);
+      option.textContent = `${w.title} — ${w.width}×${w.height}`;
+      return option;
+    }));
+    const preferred = windows.find(w => /latale|adventure/i.test(w.title || ""));
+    if (preferred) select.value = String(preferred.hwnd);
+  }
+
   function updateScreen() {
     if (pane !== "screen" || !node.open) return;
     const { status, stream, support } = assist;
+    const localReady = Array.isArray(assist.localWindows) && assist.localWindows.some(w => w.width >= 400 && w.height >= 300);
     const requesting = status === "requesting";
     const changedSource = video.srcObject !== stream;
     if (changedSource) previewIssue = false;
-    body.querySelector(".assist-connection").textContent = support.available ? connectionLabels[status] : "不支持屏幕共享";
+    body.querySelector(".assist-connection").textContent = support.available ? connectionLabels[status] : localReady ? "本地捕获可用" : "不支持屏幕共享";
     body.querySelector(".assist-heading").dataset.status = status;
     body.querySelector(".assist-preview").hidden = !support.available;
     const connect = body.querySelector("[data-connect]");

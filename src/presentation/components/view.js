@@ -64,7 +64,7 @@ export class GameView {
       t = tiles[s.position - 1],
       automatic = session.mode === "automatic",
       assisting = session.mode === "assist",
-      modeName = { automatic: "自动", manual: "手动", assist: "辅助" }[session.mode],
+      modeName = { automatic: "本地试玩", manual: "手动", assist: "辅助" }[session.mode],
       disabled = result.status === "disabled",
       vela = result.model === "vela" || result.profile?.model === "vela";
     const text = (id, value) =>

@@ -187,7 +187,7 @@ export class Session extends EventTarget {
     } else if (type === "obtained") {
       integer(value, 1, 30);
       const bit = 1 << (value - 1);
-      // 保留旧有的不对称性：自动模式可以取消标记，但不能添加标记。
+      // 保留旧有的不对称性：本地试玩模式可以取消标记，但不能添加标记。
       if (automatic && b.deckMask & bit) return false;
       b.deckMask ^= bit;
       if (!b.deckMask) b.deckMask = FULL_DECK;

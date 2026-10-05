@@ -35,12 +35,14 @@ public static class WgcSession {
         return s;
     }
 
+    static SizeInt32 poolSize;
+
     public static void StartSession(IntPtr hwnd, IntPtr gfxPtr, IntPtr itemPtr) {
-        var dev = (IDirect3DDevice)Marshal.GetObjectForIUnknown(gfxPtr);
+        device = (IDirect3DDevice)Marshal.GetObjectForIUnknown(gfxPtr);
         var item = (GraphicsCaptureItem)Marshal.GetObjectForIUnknown(itemPtr);
         if (pool != null) StopSession();
-        SizeInt32 size = RectSize(hwnd);
-        pool = Direct3D11CaptureFramePool.CreateFreeThreaded(dev, DirectXPixelFormat.B8G8R8A8UIntNormalized, 2, size);
+        poolSize = RectSize(hwnd);
+        pool = Direct3D11CaptureFramePool.CreateFreeThreaded(device, DirectXPixelFormat.B8G8R8A8UIntNormalized, 2, poolSize);
         session = pool.CreateCaptureSession(item);
         try { session.IsCursorCaptureEnabled = false; } catch { }
         session.StartCapture();
@@ -74,6 +76,19 @@ public static class WgcSession {
             try {
                 Direct3D11CaptureFrame frame = pool.TryGetNextFrame();
                 if (frame == null) { System.Threading.Thread.Sleep(15); continue; }
+                // 窗口尺寸变化时旧池仍按原尺寸出帧：新内容只占左上角，
+                // 其余为过期像素。按 ContentSize 重建池（会话保持）。
+                var content = frame.ContentSize;
+                if (content.Width > 0 && content.Height > 0 &&
+                    (content.Width != poolSize.Width || content.Height != poolSize.Height)) {
+                    poolSize = content;
+                    frame.Dispose();
+                    pool.Recreate(device, DirectXPixelFormat.B8G8R8A8UIntNormalized, 2, content);
+                    cached = null;
+                    System.Threading.Thread.Sleep(30);
+                    continue;
+                }
+                if (content.Width <= 0 || content.Height <= 0) { frame.Dispose(); continue; }
                 long now = Environment.TickCount;
                 bool need = cached == null || now - lastEncode >= 250;
                 try {

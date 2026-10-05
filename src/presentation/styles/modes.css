@@ -110,3 +110,9 @@
   .mode-copy > small { font-size: 10px; }
 }
 @media (prefers-reduced-motion: reduce) { .assist-bar progress::-webkit-progress-value { transition: none; } }
+.crop-picker { position: fixed; inset: 0; z-index: 200; background: #10201ccc; display: grid; place-items: center; }
+.crop-picker img { max-width: 92vw; max-height: 86vh; user-select: none; cursor: crosshair; }
+.crop-picker-rect { position: fixed; border: 2px solid #ffd54a; background: #ffd54a22; pointer-events: none; }
+.crop-picker-hint { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); padding: 8px 14px; border-radius: 8px; background: #fff8e9ee; color: #7c623f; font-size: 13px; }
+.assist-local-row { display: flex; gap: 8px; margin: 8px 0; align-items: center; flex-wrap: wrap; }
+.assist-local-crop-note { color: #6f897b; font-size: 11px; }

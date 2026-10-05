@@ -17,6 +17,21 @@ export async function listLocalWindows(signal) {
   return Array.isArray(windows) ? windows : [];
 }
 
+// 裁剪区域按窗口句柄保存在 localStorage：{ hwnd, x, y, w, h }（窗口像素坐标）。
+// 轮询时每次读取，便于设置后立即生效而无需重连。
+export function localCrop(hwnd) {
+  try {
+    const crop = JSON.parse(localStorage.getItem("adventure.localCrop") || "null");
+    if (crop && crop.hwnd === hwnd && crop.w > 8 && crop.h > 8) return crop;
+  } catch { }
+  return null;
+}
+
+export function setLocalCrop(hwnd, rect) {
+  if (rect) localStorage.setItem("adventure.localCrop", JSON.stringify({ hwnd, ...rect }));
+  else localStorage.removeItem("adventure.localCrop");
+}
+
 export function captureLocalWindow({ hwnd }) {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement("canvas");
@@ -39,14 +54,19 @@ export function captureLocalWindow({ hwnd }) {
         if (!stream) {
           // 先按首帧尺寸设置画布，再创建流：流轨道尺寸在建流时固定，
           // 之后改画布尺寸会导致画面只剩左上角区域。
-          canvas.width = bitmap.width;
-          canvas.height = bitmap.height;
+          const crop = localCrop(hwnd);
+          canvas.width = crop ? crop.w : bitmap.width;
+          canvas.height = crop ? crop.h : bitmap.height;
           stream = canvas.captureStream(0);
           track = stream.getVideoTracks()[0];
           track.addEventListener("ended", stop);
           stream.addEventListener("inactive", stop);
         }
-        if (bitmap.width !== canvas.width || bitmap.height !== canvas.height)
+        // 裁剪区域变化时按画布尺寸缩放绘制，保持轨道尺寸稳定。
+        const crop = localCrop(hwnd);
+        if (crop && crop.x + crop.w <= bitmap.width && crop.y + crop.h <= bitmap.height)
+          context.drawImage(bitmap, crop.x, crop.y, crop.w, crop.h, 0, 0, canvas.width, canvas.height);
+        else if (bitmap.width !== canvas.width || bitmap.height !== canvas.height)
           context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
         else context.drawImage(bitmap, 0, 0);
         bitmap.close();

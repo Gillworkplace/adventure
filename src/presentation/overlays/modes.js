@@ -1,5 +1,6 @@
 import { dialog, toast } from "./dialogs.js";
 import { showVoiceSettings } from "./voice.js";
+import { localCrop, setLocalCrop } from "../../platform/local-capture.js";
 
 const icons = {
   assist: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4M7 9h3m4 4h3"/>',
@@ -8,6 +9,52 @@ const icons = {
 };
 const icon = name => `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[name]}</svg>`;
 const names = { assist: "辅助", manual: "手动", automatic: "本地试玩" };
+
+// 全屏覆盖层：在当前窗口帧上拖动框选冒险游戏区域，返回窗口像素坐标。
+function pickCropRegion(hwnd) {
+  return new Promise(resolvePick => {
+    const overlay = document.createElement("div");
+    overlay.className = "crop-picker";
+    overlay.innerHTML = `<div class="crop-picker-hint">在画面上拖动框选冒险游戏区域（拖选太小或按 Esc 取消）</div><img alt="" draggable="false"><div class="crop-picker-rect" hidden></div>`;
+    const img = overlay.querySelector("img");
+    const rectDiv = overlay.querySelector(".crop-picker-rect");
+    img.src = `/capture/frame?hwnd=${hwnd}&t=${Date.now()}`;
+    let start = null;
+    const close = result => {
+      document.removeEventListener("keydown", key, true);
+      overlay.remove();
+      resolvePick(result);
+    };
+    const key = e => { if (e.key === "Escape") { e.stopPropagation(); close(null); } };
+    overlay.addEventListener("mousedown", e => {
+      if (e.target !== img) return;
+      start = { x: e.clientX, y: e.clientY };
+      e.preventDefault();
+    });
+    overlay.addEventListener("mousemove", e => {
+      if (!start) return;
+      const left = Math.min(start.x, e.clientX), top = Math.min(start.y, e.clientY);
+      rectDiv.hidden = false;
+      rectDiv.style.left = left + "px";
+      rectDiv.style.top = top + "px";
+      rectDiv.style.width = Math.abs(e.clientX - start.x) + "px";
+      rectDiv.style.height = Math.abs(e.clientY - start.y) + "px";
+    });
+    overlay.addEventListener("mouseup", e => {
+      if (!start) return;
+      const r = img.getBoundingClientRect();
+      const scale = img.naturalWidth / r.width;
+      const x = Math.min(Math.max(e.clientX, r.left), r.right), y = Math.min(Math.max(e.clientY, r.top), r.bottom);
+      const rect = { x: Math.round((Math.min(start.x, x) - r.left) * scale), y: Math.round((Math.min(start.y, y) - r.top) * scale),
+        w: Math.round(Math.abs(x - start.x) * scale), h: Math.round(Math.abs(y - start.y) * scale) };
+      start = null;
+      close(rect.w > 40 && rect.h > 40 ? rect : null);
+    });
+    document.addEventListener("keydown", key, true);
+    document.body.append(overlay);
+    (overlay.querySelector(".crop-picker-hint")).focus?.();
+  });
+}
 const connectionLabels = {
   idle: "请连接画面", requesting: "正在选择画面", connected: "画面已连接",
   paused: "画面已暂停", disconnected: "连接已断开",
@@ -102,6 +149,11 @@ export function showModes(session, assist, { screen = false, voice = null } = {}
           <select class="assist-local-window" aria-label="选择要抓取的窗口"></select>
           <button type="button" data-local-connect>本地连接</button>
         </div>
+        <div class="assist-local-row">
+          <button type="button" data-local-crop>框选冒险区域</button>
+          <button type="button" data-local-crop-clear hidden>恢复完整窗口</button>
+          <span class="assist-local-crop-note">框选后共享画面只显示所选区域</span>
+        </div>
         <p>由本地服务器直接抓取所选窗口的画面，可用于不支持屏幕共享的浏览器。目标窗口必须保持可见且不被其他窗口遮挡；点击“断开连接”会结束抓取。</p>
       </details>
       <p class="assist-privacy">所选画面只在此浏览器中查看，不会录制或传输。</p>
@@ -122,6 +174,26 @@ export function showModes(session, assist, { screen = false, voice = null } = {}
         node.close();
       }
     };
+    const windowSelect = body.querySelector(".assist-local-window");
+    const cropButton = body.querySelector("[data-local-crop]");
+    const cropClear = body.querySelector("[data-local-crop-clear]");
+    const refreshCropButtons = () => {
+      const has = !!localCrop(Number(windowSelect.value));
+      cropButton.textContent = has ? "重新框选冒险区域" : "框选冒险区域";
+      cropClear.hidden = !has;
+    };
+    cropButton.onclick = async () => {
+      const hwnd = Number(windowSelect.value);
+      const rect = await pickCropRegion(hwnd);
+      if (rect) { setLocalCrop(hwnd, rect); toast("已框选冒险区域，共享画面将只显示该区域。"); }
+      refreshCropButtons();
+    };
+    cropClear.onclick = () => {
+      setLocalCrop(Number(windowSelect.value), null);
+      refreshCropButtons();
+    };
+    windowSelect.addEventListener("change", refreshCropButtons);
+    refreshCropButtons();
     assist.refreshLocalWindows().then(ok => { if (ok && pane === "screen" && node.open) renderLocalChoices(); });
     body.querySelector("[data-rescan]").onclick = () => { assist.rescan(); node.close(); };
     body.querySelector("[data-disconnect]").onclick = () => assist.disconnect();
@@ -146,8 +218,9 @@ export function showModes(session, assist, { screen = false, voice = null } = {}
       option.textContent = `${w.title} — ${w.width}×${w.height}`;
       return option;
     }));
-    const preferred = windows.find(w => /latale|adventure/i.test(w.title || ""));
+    const preferred = windows.find(w => /latale/i.test(w.title || ""));
     if (preferred) select.value = String(preferred.hwnd);
+    refreshCropButtons();
   }
 
   function updateScreen() {

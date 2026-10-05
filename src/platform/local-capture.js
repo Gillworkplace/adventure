@@ -17,43 +17,49 @@ export async function listLocalWindows(signal) {
   return Array.isArray(windows) ? windows : [];
 }
 
-export async function captureLocalWindow({ hwnd }) {
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-  const stream = canvas.captureStream(0);
-  const track = stream.getVideoTracks()[0];
-  let stopped = false, failures = 0, timer = null;
-  const stop = () => {
-    if (stopped) return;
-    stopped = true;
-    clearTimeout(timer);
-    if (track.readyState === "live") track.stop();
-  };
-  // assist 释放轨道时同步终止轮询；连续失败同样结束轨道，让上层走 ended 清理流程。
-  track.addEventListener("ended", stop);
-  stream.addEventListener("inactive", stop);
-  const pump = async () => {
-    if (stopped) return;
-    try {
-      const response = await fetch(`/capture/frame?hwnd=${hwnd}`, { cache: "no-store" });
-      if (!response.ok) throw new DOMException(response.statusText || "capture failed", "NotAllowedError");
-      const bitmap = await createImageBitmap(await response.blob());
-      if (stopped) { bitmap.close(); return; }
-      if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
-        canvas.width = bitmap.width;
-        canvas.height = bitmap.height;
+export function captureLocalWindow({ hwnd }) {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    let stream = null, track = null, stopped = false, failures = 0, timer = null;
+    // assist 释放轨道时同步终止轮询；连续失败同样结束轨道，让上层走 ended 清理流程。
+    const stop = () => {
+      if (stopped) return;
+      stopped = true;
+      clearTimeout(timer);
+      if (track && track.readyState === "live") track.stop();
+    };
+    const pump = async () => {
+      if (stopped) return;
+      try {
+        const response = await fetch(`/capture/frame?hwnd=${hwnd}`, { cache: "no-store" });
+        if (!response.ok) throw new DOMException(response.statusText || "capture failed", "NotAllowedError");
+        const bitmap = await createImageBitmap(await response.blob());
+        if (stopped) { bitmap.close(); return; }
+        if (!stream) {
+          // 先按首帧尺寸设置画布，再创建流：流轨道尺寸在建流时固定，
+          // 之后改画布尺寸会导致画面只剩左上角区域。
+          canvas.width = bitmap.width;
+          canvas.height = bitmap.height;
+          stream = canvas.captureStream(0);
+          track = stream.getVideoTracks()[0];
+          track.addEventListener("ended", stop);
+          stream.addEventListener("inactive", stop);
+        }
+        if (bitmap.width !== canvas.width || bitmap.height !== canvas.height)
+          context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        else context.drawImage(bitmap, 0, 0);
+        bitmap.close();
+        failures = 0;
+        resolve(stream);
+        track.requestFrame?.();
+        timer = setTimeout(pump, 30);
+      } catch (error) {
+        diagnostics.record("assist.localCapture", { stage: "frame", message: String(error?.message || error) });
+        if (++failures > 8) { stop(); reject(error); return; }
+        timer = setTimeout(pump, 300);
       }
-      context.drawImage(bitmap, 0, 0);
-      bitmap.close();
-      failures = 0;
-      track.requestFrame?.();
-      timer = setTimeout(pump, 30);
-    } catch (error) {
-      diagnostics.record("assist.localCapture", { stage: "frame", message: String(error?.message || error) });
-      if (++failures > 8) { stop(); return; }
-      timer = setTimeout(pump, 300);
-    }
-  };
-  pump();
-  return stream;
+    };
+    pump();
+  });
 }

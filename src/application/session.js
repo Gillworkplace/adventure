@@ -80,7 +80,7 @@ export class Session extends EventTarget {
       automatic = this.mode === "automatic";
     const integer = (n, min, max) => {
       if (!Number.isInteger(n) || n < min || n > max)
-        throw RangeError(`${min}~${max} 사이 정수를 입력하세요.`);
+        throw RangeError(`请输入 ${min}~${max} 之间的整数。`);
     };
     const land = (position) => {
       b.score = resolveLanding(clampPosition(position));
@@ -100,7 +100,7 @@ export class Session extends EventTarget {
       this.edited = false;
     } else if (type === "mode") {
       const mode = value ?? (automatic ? "manual" : "automatic");
-      if (!["manual", "automatic", "assist"].includes(mode)) throw RangeError("사용할 수 없는 모드입니다.");
+      if (!["manual", "automatic", "assist"].includes(mode)) throw RangeError("无法使用的模式。");
       if (mode === this.mode) return false;
       this.mode = mode;
       this.assistReady = false;
@@ -174,14 +174,14 @@ export class Session extends EventTarget {
         return false;
       let query = value
         .trim()
-        .replace("+", "앞으로 ")
-        .replace("-", "뒤로 ")
-        .replace("*", "주사위 ")
-        .replace(/^>.*/, "다음 스테이지");
+        .replace("+", "前进 ")
+        .replace("-", "后退 ")
+        .replace("*", "骰子 ")
+        .replace(/^>.*/, "下一关卡");
       const index = cardLabels.findIndex(
         (name, i) => name.includes(query) && b.deckMask & (1 << i),
       );
-      if (index < 0) throw Error("획득 가능한 일치 카드가 없습니다.");
+      if (index < 0) throw Error("没有可获得的匹配卡牌。");
       add(index + 1);
       this.edited = true;
     } else if (type === "obtained") {

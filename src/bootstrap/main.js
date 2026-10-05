@@ -64,13 +64,13 @@ assets.addEventListener("change", () => {
   if (missing.length) {
     imagesPending = true;
     const failed = missing.some(record => record.state === "failed");
-    notify("assets", failed ? "일부 이미지를 불러오지 못했습니다." : "이미지를 불러오는 중입니다.", {
+    notify("assets", failed ? "部分图片加载失败。" : "正在加载图片。", {
       tone: failed ? "warning" : "loading", duration: 0,
-      action: failed ? () => assets.retryFailed() : undefined, actionLabel: failed ? "다시 시도" : undefined,
+      action: failed ? () => assets.retryFailed() : undefined, actionLabel: failed ? "重试" : undefined,
     });
   } else if (imagesPending) {
     imagesPending = false;
-    notify("assets", "이미지 준비가 완료되었습니다.", { tone: "success", duration: 4000 });
+    notify("assets", "图片准备完成。", { tone: "success", duration: 4000 });
   }
 });
 coordinator.addEventListener("notice", event => toast(event.message));
@@ -105,7 +105,7 @@ try {
     document.querySelector("#loading-progress").value = percent;
     document.querySelector("#loading-percent").textContent = percent + "%";
     document.querySelector("#loading-detail").textContent =
-      completed === total ? "준비 완료" : "게임 화면을 준비하고 있습니다.";
+      completed === total ? "准备完成" : "正在准备游戏画面。";
   };
   coordinator.checkGpu();
   removeRetiredModelCaches().catch(error => { diagnostics.capture(error, "model.cache.cleanup"); console.error("Model cache cleanup failed", error); });
@@ -130,11 +130,11 @@ try {
   diagnostics.capture(error, "boot.main");
   window.adventureBoot.fail();
   document.querySelector("#loading-status").textContent =
-    "준비하지 못했습니다.";
+    "准备失败。";
   console.error("Loading failed", error);
-  document.querySelector("#loading-detail").textContent = "연결을 확인한 뒤 다시 시도해 주세요.";
+  document.querySelector("#loading-detail").textContent = "请检查网络连接后重试。";
   const retry = document.createElement("button");
-  retry.textContent = "다시 시도";
+  retry.textContent = "重试";
   retry.onclick = () => location.reload();
   document.querySelector(".loading-card").append(retry);
 }

@@ -23,18 +23,18 @@ export class GpuBackend {
     if (this.disposed) throw Error("GPU backend disposed");
     if (this.lost)
       throw Error(
-        `GPU 연결이 종료되었습니다. CPU로 전환하거나 페이지를 새로고침해 주세요. ${this.lost}`,
+        `GPU 连接已断开。请切换到 CPU 或刷新页面。${this.lost}`,
       );
     if (this.ready) return this.ready;
     this.ready = (async () => {
       if (!navigator.gpu)
         throw Error(
-          "이 브라우저는 WebGPU를 지원하지 않습니다. CPU를 선택해 주세요.",
+          "此浏览器不支持 WebGPU。请选择 CPU。",
         );
       const adapter = await navigator.gpu.requestAdapter({
         powerPreference: "high-performance",
       });
-      if (!adapter) throw Error("GPU를 사용할 수 없습니다.");
+      if (!adapter) throw Error("无法使用 GPU。");
       const device = await adapter.requestDevice();
       if (this.disposed) {
         device.destroy();

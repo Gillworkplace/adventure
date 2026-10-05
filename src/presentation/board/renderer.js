@@ -69,7 +69,7 @@ export class BoardRenderer {
         );
       if (!events && t.event) {
         ctx.fillStyle = "#435c50"; ctx.font = "bold 15px Arial";
-        ctx.fillText(({2:"카드",6:"멈춤",9:"멈춤"})[t.event] || "", r.x + 8, r.y + 43);
+        ctx.fillText(({2:"卡牌",6:"停留",9:"停留"})[t.event] || "", r.x + 8, r.y + 43);
       }
       if (t.jump) {
         ctx.font = "bold 50px Arial";
@@ -133,7 +133,7 @@ export class BoardRenderer {
     if (character) ctx.drawImage(character, 90, 0, 90, 120, r.x, r.y, 90, 120);
     else {
       ctx.fillStyle = "#296f70"; ctx.beginPath(); ctx.arc(r.x + 45, r.y + 62, 19, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "white"; ctx.font = "bold 16px Arial"; ctx.textAlign = "center"; ctx.fillText("현재", r.x + 45, r.y + 68);
+      ctx.fillStyle = "white"; ctx.font = "bold 16px Arial"; ctx.textAlign = "center"; ctx.fillText("当前", r.x + 45, r.y + 68);
     }
     if (this.dragPosition && this.dragPosition !== s.position) {
       const r = cellRect(this.dragPosition),
@@ -169,7 +169,7 @@ export class BoardRenderer {
     const pct = (o.count / o.denominator) * 100,
       text =
         o.denominator === 1
-          ? "확정"
+          ? "确定"
           : pct >= 10
             ? Math.round(pct) + "%"
             : pct.toFixed(1) + "%";

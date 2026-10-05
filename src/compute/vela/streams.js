@@ -17,7 +17,7 @@ export async function consumeModel(stream, manifest, { writer, write = () => {},
   const verify = async () => {
     const digest = await crypto.subtle.digest("SHA-256", block.subarray(0, buffered));
     const hex = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
-    if (hex !== manifest.chunkHashes[verified / manifest.chunkBytes]) throw Object.assign(Error("모델 파일을 확인하지 못했습니다."), { code: "integrity" });
+    if (hex !== manifest.chunkHashes[verified / manifest.chunkBytes]) throw Object.assign(Error("无法校验模型文件。"), { code: "integrity" });
     verified += buffered; buffered = 0;
   };
   let cacheWritten = !!writer;
@@ -37,7 +37,7 @@ export async function consumeModel(stream, manifest, { writer, write = () => {},
       let timer;
       const { done, value } = await Promise.race([
         reader.read(),
-        new Promise((_, reject) => timer = setTimeout(() => reject(Object.assign(Error("다운로드 응답이 지연되고 있습니다."), { code: "network" })), 45000)),
+        new Promise((_, reject) => timer = setTimeout(() => reject(Object.assign(Error("下载响应出现延迟。"), { code: "network" })), 45000)),
       ]).finally(() => clearTimeout(timer));
       if (done) break;
       if (written + value.length > manifest.decodedBytes) throw Error("Oversized model data");
@@ -50,7 +50,7 @@ export async function consumeModel(stream, manifest, { writer, write = () => {},
       }
       progress({ received, written, verified });
     }
-    if (written !== manifest.decodedBytes || received !== manifest.bytes) throw Object.assign(Error("모델 다운로드가 완료되지 않았습니다."), { code: "network" });
+    if (written !== manifest.decodedBytes || received !== manifest.bytes) throw Object.assign(Error("模型下载未完成。"), { code: "network" });
     if (buffered) await verify();
     if (writer) {
       try { await writer.close(); writer = null; }

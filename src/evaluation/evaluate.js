@@ -174,7 +174,7 @@ export async function evaluate({
           for (const stat of batches) {
             if (stat.truncated)
               throw Error(
-                `GPU rollout ${stat.truncated}개가 종료 한도에 도달했습니다. 결과를 추천에 사용하지 않습니다.`,
+                `GPU rollout 有 ${stat.truncated} 个达到终止上限，结果不用于推荐。`,
               );
             merge(stats[stat.action], stat);
           }

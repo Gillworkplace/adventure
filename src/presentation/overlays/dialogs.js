@@ -51,7 +51,7 @@ export function dialog(title, body, { className = "" } = {}) {
     header.className = "dialog-header";
     close.type = "button";
     close.className = "dialog-close";
-    close.setAttribute("aria-label", "닫기");
+    close.setAttribute("aria-label", "关闭");
     close.textContent = "×";
     close.onclick = () => node.close();
     header.append(heading, close);
@@ -114,7 +114,7 @@ export function dialog(title, body, { className = "" } = {}) {
   return node;
 }
 export function askValue(title, {
-  value = "", min, max, text = false, label: fieldLabel = "값",
+  value = "", min, max, text = false, label: fieldLabel = "值",
   hint, placeholder = "",
 } = {}) {
   return new Promise((resolve) => {
@@ -136,7 +136,7 @@ export function askValue(title, {
     }
     label.append(input);
     form.append(label);
-    const description = hint ?? (min !== undefined && max !== undefined ? `${min.toLocaleString()}–${max.toLocaleString()} 사이의 숫자` : "");
+    const description = hint ?? (min !== undefined && max !== undefined ? `${min.toLocaleString()}–${max.toLocaleString()} 之间的数字` : "");
     if (description) {
       const note = document.createElement("p");
       note.className = "dialog-hint";
@@ -148,9 +148,9 @@ export function askValue(title, {
     const footer = document.createElement("footer"),
       cancel = document.createElement("button"),
       ok = document.createElement("button");
-    cancel.textContent = "취소";
+    cancel.textContent = "取消";
     cancel.type = "button";
-    ok.textContent = "확인";
+    ok.textContent = "确认";
     ok.className = "primary";
     footer.append(ok, cancel);
     form.append(footer);
@@ -169,7 +169,7 @@ export function askValue(title, {
   });
 }
 export function confirmAction(title, message, {
-  confirmLabel = "확인", cancelLabel = "취소", className = "confirm-dialog",
+  confirmLabel = "确认", cancelLabel = "取消", className = "confirm-dialog",
 } = {}) {
   return new Promise((resolve) => {
     const body = document.createElement("div"),

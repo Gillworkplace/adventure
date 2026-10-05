@@ -61,7 +61,7 @@ export class AssistVoice extends EventTarget {
       this.pack?.dispose(); this.pack = candidate; candidate = null;
       this.settings = settings({ ...this.settings, language: pack.language, voice: pack.voice, persist }); this.save();
       this.enabled = true; this.status = "ready"; this.preparation = null; this.delivered = null; this.unblock(); this.publish();
-      if (result.cacheFailed) this.notice("음성은 사용할 수 있지만, 브라우저에 저장하지 못했습니다.");
+      if (result.cacheFailed) this.notice("语音可以使用，但未能保存到浏览器。");
       this.inspect(); this.sync(); return true;
     } catch (error) {
       candidate?.dispose();
@@ -340,15 +340,15 @@ export class AssistVoice extends EventTarget {
   }
   failed(error) {
     diagnostics.capture(error, "voice.play"); this.error = error.message;
-    this.notice("음성을 재생하지 못했습니다. 음성 설정에서 미리 듣기를 눌러주세요.");
+    this.notice("无法播放语音。请在语音设置中点击试听。");
     this.stop(); this.audio.unlocked = false;
     this.playbackBlocked = true; this.publish();
   }
   unblock() { this.playbackBlocked = false; this.error = null; }
   async clearCache() {
     if (this.preparing) this.cancelPreparation();
-    try { await clearVoiceCache(); this.settings.persist = false; this.save(); await this.inspect(); this.notice("저장된 음성 데이터를 삭제했습니다."); }
-    catch (error) { diagnostics.capture(error, "voice.cache.clear"); this.notice("음성 데이터를 삭제하지 못했습니다. 브라우저의 사이트 저장소를 확인해 주세요."); }
+    try { await clearVoiceCache(); this.settings.persist = false; this.save(); await this.inspect(); this.notice("已删除保存的语音数据。"); }
+    catch (error) { diagnostics.capture(error, "voice.cache.clear"); this.notice("无法删除语音数据。请检查浏览器的网站存储。"); }
   }
   dispose() {
     this.disposed = true;

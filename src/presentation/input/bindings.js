@@ -25,8 +25,8 @@ export function bindInputs(session, coordinator, renderer, prediction, assist, v
   const search = async (source = "pointer") => {
     if (session.mode !== "manual" || session.state.hand.length >= 5) return;
     const value = await askValue(
-      "카드 검색",
-      { text: true, label: "이름 또는 효과", hint: "+숫자 · -숫자 · *배수 · >", placeholder: "카드 이름이나 효과 입력" },
+      "卡牌搜索",
+      { text: true, label: "名称或效果", hint: "+数字 · -数字 · *倍数 · >", placeholder: "输入卡牌名称或效果" },
     );
     if (value !== null) execute("search", value, source);
   };
@@ -35,10 +35,10 @@ export function bindInputs(session, coordinator, renderer, prediction, assist, v
     if (source === "keyboard" && session.mode === "automatic") return;
     const position = type === "position",
       value = await askValue(
-        position ? "현재 칸 변경" : "주사위 사용 횟수 변경",
+        position ? "修改当前格" : "修改骰子使用次数",
         {
           value: session.state[position ? "position" : "diceUsed"],
-          label: position ? "이동할 칸" : "사용한 주사위",
+          label: position ? "要移动到的格" : "已使用的骰子次数",
           min: position ? 1 : 0,
           max: position ? 2898 : 100,
         },
@@ -77,7 +77,7 @@ export function bindInputs(session, coordinator, renderer, prediction, assist, v
   $("#estimates").onclick = recalculate;
   $("#reset-button").onclick = async () => {
     if (session.mode === "assist") return;
-    if (await confirmAction("재시작", "현재 게임을 초기화할까요?"))
+    if (await confirmAction("重新开始", "要重置当前游戏吗？"))
       execute("reset");
   };
   $("#mode-button").onclick = () => {
@@ -100,7 +100,7 @@ export function bindInputs(session, coordinator, renderer, prediction, assist, v
   $("#next-stage").onclick = () => execute("stage", 1);
   $("#card-info-button").onclick = () => {
     if (session.mode === "assist" && (!assist.reading?.ready || assist.issue?.startsWith("deck-") || assist.reading?.issue?.startsWith("deck-"))) {
-      toast("웹 화면이 아닌 공유 중인 실제 게임 화면의 물음표(?)를 눌러주세요.");
+      toast("请点击共享中的实际游戏画面里的问号（?），而不是网页画面。");
       voice?.speakNotice?.("deck-ingame");
       const panel = $("#card-info");
       panel.hidden = true;
@@ -159,7 +159,7 @@ export function bindInputs(session, coordinator, renderer, prediction, assist, v
     const revision = session.revision,
       body = document.createElement("div");
     body.innerHTML =
-      '<p>카드 동작을 선택하세요.</p><footer><button data-card-action="preview">도착 예측</button><button data-card-action="discard">버리기</button><button data-card-action="close">닫기</button></footer>';
+      '<p>请选择卡牌操作。</p><footer><button data-card-action="preview">到达预测</button><button data-card-action="discard">弃置</button><button data-card-action="close">关闭</button></footer>';
     const node = dialog(cardLabels[id - 1], body);
     body.onclick = (e) => {
       const action = e.target.dataset.cardAction;

@@ -2,9 +2,9 @@ import { dialog, paintChoices } from "./dialogs.js";
 import { compatibilityMessage } from "../../content/compatibility.js";
 import { showSupport } from "../components/support.js";
 const usageOptions = [
-  ["low", "낮음", "다른 작업 우선"],
-  ["medium", "보통", "균형"],
-  ["high", "높음", "빠른 계산 우선"],
+  ["low", "低", "优先其他任务"],
+  ["medium", "中", "平衡"],
+  ["high", "高", "优先快速计算"],
 ];
 export function showSettings(coordinator, { initial = false, onBack, onCancel, onFinish } = {}) {
   if (document.querySelector("dialog")) return;
@@ -20,15 +20,15 @@ export function showSettings(coordinator, { initial = false, onBack, onCancel, o
       ]),
     ].sort((a, b) => a - b);
   const choice = (name, value, title, detail, defaultChoice = false) =>
-    `<label class="model-choice compute-choice"><input type="radio" name="${name}" value="${value}"><span class="model-choice-copy"><strong>${title}${defaultChoice ? "<small>기본</small>" : ""}</strong><span class="compute-description">${detail}</span></span><span class="model-check" aria-hidden="true"></span></label>`;
+    `<label class="model-choice compute-choice"><input type="radio" name="${name}" value="${value}"><span class="model-choice-copy"><strong>${title}${defaultChoice ? "<small>默认</small>" : ""}</strong><span class="compute-description">${detail}</span></span><span class="model-check" aria-hidden="true"></span></label>`;
   const body = document.createElement("form");
   body.method = "dialog";
-  body.innerHTML = `<p class="model-intro">계산 방식과 기기 사용량을 고르세요.</p>
-  <fieldset class="compute-engine-options" aria-label="계산 엔진">${choice("engine", "gpu", "GPU", "G3 · 더 많은 표본")}${choice("engine", "cpu", "CPU", "G3 · 적은 연산량")}</fieldset>
+  body.innerHTML = `<p class="model-intro">请选择计算方式与设备占用。</p>
+  <fieldset class="compute-engine-options" aria-label="计算引擎">${choice("engine", "gpu", "GPU", "G3 · 更多样本")}${choice("engine", "cpu", "CPU", "G3 · 更少运算量")}</fieldset>
   <div class="model-support gpu-support"></div>
-  <fieldset data-engine-panel="gpu"><legend>GPU 사용량</legend><div class="compute-options">${usageOptions.map(([key, title, detail]) => choice("usage", key, title, detail, key === "medium")).join("")}</div></fieldset>
-  <fieldset data-engine-panel="cpu"><legend>CPU 사용량</legend><div class="compute-options">${workers.map((n) => choice("workers", n, n === 1 ? "낮음" : n === coordinator.maxWorkers ? "높음" : "보통", `${n}개 동시 계산`, n === defaultWorkers)).join("")}</div></fieldset>
-  <footer><span></span><button type="submit" class="primary">${initial ? "시작" : "적용"}</button><button type="button" class="compute-cancel">취소</button></footer>`;
+  <fieldset data-engine-panel="gpu"><legend>GPU 占用</legend><div class="compute-options">${usageOptions.map(([key, title, detail]) => choice("usage", key, title, detail, key === "medium")).join("")}</div></fieldset>
+  <fieldset data-engine-panel="cpu"><legend>CPU 占用</legend><div class="compute-options">${workers.map((n) => choice("workers", n, n === 1 ? "低" : n === coordinator.maxWorkers ? "高" : "中", `${n}路并行计算`, n === defaultWorkers)).join("")}</div></fieldset>
+  <footer><span></span><button type="submit" class="primary">${initial ? "开始" : "应用"}</button><button type="button" class="compute-cancel">取消</button></footer>`;
   for (const [key, value] of Object.entries({
     engine: settings.engine,
     usage: settings.usage,
@@ -52,12 +52,12 @@ export function showSettings(coordinator, { initial = false, onBack, onCancel, o
     const pending = support.state === "checking" || support.state === "unchecked";
     gpuRadio.disabled = support.state !== "available";
     const hint = gpuRadio.closest("label").querySelector(".compute-description");
-    hint.textContent = pending ? "사용 가능 여부 확인 중" : support.available ? "G3 · 더 많은 표본" : compatibilityMessage(support.code).title;
+    hint.textContent = pending ? "正在检查可用性" : support.available ? "G3 · 更多样本" : compatibilityMessage(support.code).title;
     if (gpuRadio.disabled) body.elements.engine.value = "cpu";
     else if (!engineChanged && settings.engine === "gpu") body.elements.engine.value = "gpu";
     if (!pending && !support.available && detail.dataset.code !== support.code) {
       detail.dataset.code = support.code;
-      showSupport(detail, support.code, { retry: () => coordinator.checkGpu(true), target: "GPU 사용 가능 여부", label: "GPU 사용 불가 · 도움말" });
+      showSupport(detail, support.code, { retry: () => coordinator.checkGpu(true), target: "GPU 可用性", label: "GPU 不可用 · 帮助" });
     } else if (pending || support.available) { detail.replaceChildren(); delete detail.dataset.code; }
     refresh();
   };
@@ -66,11 +66,11 @@ export function showSettings(coordinator, { initial = false, onBack, onCancel, o
   coordinator.checkGpu(); refreshSupport();
   if (onBack) {
     const back = document.createElement("button");
-    back.type = "button"; back.className = "model-back"; back.textContent = "모델 선택";
+    back.type = "button"; back.className = "model-back"; back.textContent = "模型选择";
     body.querySelector("footer").prepend(back);
     back.onclick = () => { returning = true; node.addEventListener("close", onBack, { once: true }); node.close(); };
   }
-  const node = dialog("X36 엔진 선택", body, { className: "model-dialog compute-dialog" });
+  const node = dialog("X36 引擎选择", body, { className: "model-dialog compute-dialog" });
   let applied = false, returning = false;
   body.querySelector(".compute-cancel").onclick = () => node.close();
   node.addEventListener("close", () => {

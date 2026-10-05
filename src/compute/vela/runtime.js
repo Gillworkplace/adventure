@@ -7,7 +7,7 @@ export async function responseFor(url, buffered = false) {
   const request = deadline(null, 15000);
   try {
     const response = await fetch(url, { cache: "no-store", credentials: "omit", redirect: "error", referrerPolicy: "no-referrer", signal: request.signal });
-    if (response.status !== 200) throw Object.assign(Error("파일을 불러오지 못했습니다."), {
+    if (response.status !== 200) throw Object.assign(Error("无法加载文件。"), {
       code: LOCAL_MODEL && response.status === 404 && new URL(url).pathname === new URL("model.bin.gz", MODEL_URL).pathname ? "local-model-missing" : "network",
     });
     return buffered ? await response.arrayBuffer() : response;
@@ -20,7 +20,7 @@ async function readRuntime(manifest, directory) {
       ? await (await (await directory.getFileHandle(name === "module" ? "module.mjs" : "module.wasm")).getFile()).arrayBuffer()
       : await responseFor(new URL(record.file, MODEL_URL), true);
     if (buffer.byteLength !== record.bytes || hex(await crypto.subtle.digest("SHA-256", buffer)) !== record.sha256)
-      throw Object.assign(Error("모델 실행 파일을 확인하지 못했습니다."), { code: "integrity" });
+      throw Object.assign(Error("无法校验模型运行文件。"), { code: "integrity" });
     return buffer;
   }));
 }

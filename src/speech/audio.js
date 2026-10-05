@@ -66,7 +66,7 @@ export class VoiceAudio {
   play(url, { onStarted } = {}) {
     this.stop();
     const element = this.element;
-    if (!element) throw Error("음성 설정에서 미리 듣기를 눌러주세요.");
+    if (!element) throw Error("请在语音设置中点击试听。");
     if (this.ctx?.state === "suspended") this.ctx.resume().catch(() => {});
     element.src = url; element.playbackRate = 1;
     return new Promise((resolve, reject) => {
@@ -81,8 +81,8 @@ export class VoiceAudio {
         element.onplaying = null;
         onStarted?.();
       };
-      element.onerror = () => finish(Error("음성을 재생하지 못했습니다. 음성 설정에서 다시 확인해 주세요."));
-      element.play().catch(error => finish(error.name === "NotAllowedError" ? Error("브라우저가 음성을 일시 중지했습니다. 미리 듣기를 눌러주세요.") : error));
+      element.onerror = () => finish(Error("无法播放语音。请在语音设置中重新确认。"));
+      element.play().catch(error => finish(error.name === "NotAllowedError" ? Error("浏览器已暂停语音。请点击试听。") : error));
     });
   }
   get snapshot() {

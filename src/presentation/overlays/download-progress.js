@@ -1,9 +1,9 @@
 const remainingTime = seconds => {
   const value = Math.max(1, Math.ceil(seconds));
-  if (value < 60) return `${value}초`;
-  if (value < 3600) return `${Math.floor(value / 60)}분 ${value % 60}초`;
+  if (value < 60) return `${value} 秒`;
+  if (value < 3600) return `${Math.floor(value / 60)} 分 ${value % 60} 秒`;
   const minutes = Math.ceil(value / 60);
-  return `${Math.floor(minutes / 60)}시간 ${minutes % 60}분`;
+  return `${Math.floor(minutes / 60)} 小时 ${minutes % 60} 分`;
 };
 
 export function downloadProgress(element) {
@@ -17,17 +17,17 @@ export function downloadProgress(element) {
     if (!samples.length) return;
     element.hidden = false;
     if (total > 0 && received >= total) {
-      element.textContent = "다운로드 완료"; stop(); return;
+      element.textContent = "下载完成"; stop(); return;
     }
     const now = performance.now();
     while (samples.length > 1 && samples[1].time <= now - 5000) samples.shift();
     const elapsed = now - samples[0].time;
     const speed = elapsed > 0 ? (received - samples[0].bytes) * 1000 / elapsed : 0;
-    if (now - changedAt >= 5000) element.textContent = "응답 대기 중";
-    else if (elapsed < 1000 || speed <= 0) element.textContent = "속도 확인 중";
+    if (now - changedAt >= 5000) element.textContent = "等待响应中";
+    else if (elapsed < 1000 || speed <= 0) element.textContent = "正在确认速度";
     else {
       const rate = speed >= 1e6 ? `${(speed / 1e6).toFixed(1)} MB/s` : `${Math.max(1, Math.round(speed / 1000))} KB/s`;
-      element.textContent = rate + (total > received ? ` · 약 ${remainingTime((total - received) / speed)} 남음` : "");
+      element.textContent = rate + (total > received ? ` · 剩余约 ${remainingTime((total - received) / speed)}` : "");
     }
   };
   return {

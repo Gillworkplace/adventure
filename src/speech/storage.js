@@ -3,7 +3,7 @@ import { phraseCatalog, ROLL_VARIATIONS } from "./messages.js";
 
 const check = signal => signal?.throwIfAborted();
 const hash = async buffer => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", buffer)), b => b.toString(16).padStart(2, "0")).join("");
-const needsDownload = () => Object.assign(Error("저장된 음성을 사용할 수 없습니다. 다운로드 용량을 확인한 뒤 다시 받아주세요."), { code: "download-required" });
+const needsDownload = () => Object.assign(Error("无法使用已保存的语音。请检查下载容量后重新下载。"), { code: "download-required" });
 
 export async function inspectVoiceCache() {
   const result = { available: false, bytes: 0, files: {}, freeBytes: null };
@@ -32,20 +32,20 @@ export async function clearVoiceCache() {
 export class VoicePack {
   constructor(buffer, descriptor) {
     const bytes = new Uint8Array(buffer), view = new DataView(buffer), decoder = new TextDecoder();
-    if (bytes.length < 12 || decoder.decode(bytes.subarray(0, 8)) !== "ADVAUD2\n") throw Error("음성 파일 형식이 올바르지 않습니다.");
+    if (bytes.length < 12 || decoder.decode(bytes.subarray(0, 8)) !== "ADVAUD2\n") throw Error("语音文件格式不正确。");
     const length = view.getUint32(8, true);
-    if (length > 1000000 || length + 12 >= bytes.length) throw Error("음성 파일 형식이 올바르지 않습니다.");
+    if (length > 1000000 || length + 12 >= bytes.length) throw Error("语音文件格式不正确。");
     const header = JSON.parse(decoder.decode(bytes.subarray(12, 12 + length)));
-    if (header.schema !== 2 || header.id !== descriptor.id || header.version !== descriptor.version || header.mime !== "audio/mpeg") throw Error("음성 파일의 버전이 올바르지 않습니다.");
+    if (header.schema !== 2 || header.id !== descriptor.id || header.version !== descriptor.version || header.mime !== "audio/mpeg") throw Error("语音文件的版本不正确。");
     const keys = Object.keys(phraseCatalog(descriptor.language));
-    if (!header.clips || Object.keys(header.clips).length !== keys.length) throw Error("일부 안내 음성이 없습니다.");
+    if (!header.clips || Object.keys(header.clips).length !== keys.length) throw Error("缺少部分引导语音。");
     let end = 0;
     for (const key of keys) {
       const entry = header.clips[key];
-      if (!Array.isArray(entry) || entry.length !== 3 || !Number.isSafeInteger(entry[0]) || !Number.isSafeInteger(entry[1]) || entry[0] !== end || entry[1] <= 0 || !Number.isFinite(entry[2]) || entry[2] <= 0 || entry[2] > 40) throw Error("안내 음성을 확인하지 못했습니다.");
+      if (!Array.isArray(entry) || entry.length !== 3 || !Number.isSafeInteger(entry[0]) || !Number.isSafeInteger(entry[1]) || entry[0] !== end || entry[1] <= 0 || !Number.isFinite(entry[2]) || entry[2] <= 0 || entry[2] > 40) throw Error("无法校验引导语音。");
       end += entry[1];
     }
-    if (end !== bytes.length - 12 - length) throw Error("음성 파일의 크기가 올바르지 않습니다.");
+    if (end !== bytes.length - 12 - length) throw Error("语音文件的大小不正确。");
     this.descriptor = descriptor; this.clips = header.clips; this.bytes = bytes.subarray(12 + length); this.urls = new Map();
   }
   url(id) {
@@ -55,7 +55,7 @@ export class VoicePack {
       if (candidates.length) key = candidates[Math.floor(Math.random() * candidates.length)];
     }
     const entry = this.clips[key];
-    if (!entry || !this.bytes) throw Error("안내 음성을 찾지 못했습니다.");
+    if (!entry || !this.bytes) throw Error("找不到引导语音。");
     let url = this.urls.get(key);
     if (url) this.urls.delete(key);
     else url = URL.createObjectURL(new Blob([this.bytes.subarray(entry[0], entry[0] + entry[1])], { type: "audio/mpeg" }));
@@ -91,22 +91,22 @@ export async function loadVoicePack(pack, { signal, download = false, persist = 
     touch();
     try {
       const response = await fetch(packUrl(pack), { signal: controller.signal, cache: "no-store", credentials: "omit" });
-      if (!response.ok || !response.body) throw Error("음성 파일을 받지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
+      if (!response.ok || !response.body) throw Error("无法下载语音文件。请检查网络连接后重试。");
       const reader = response.body.getReader(), bytes = new Uint8Array(pack.bytes); let loaded = 0;
       try {
         while (true) {
           check(signal); const { done, value } = await reader.read(); if (done) break; touch();
-          if (loaded + value.length > bytes.length) throw Error("음성 파일의 크기가 올바르지 않습니다.");
+          if (loaded + value.length > bytes.length) throw Error("语音文件的大小不正确。");
           bytes.set(value, loaded); loaded += value.length; progress({ phase: "download", loaded, total: pack.bytes });
         }
       } finally { await reader.cancel().catch(() => {}); }
-      if (loaded !== pack.bytes) throw Error("음성 파일을 끝까지 받지 못했습니다.");
+      if (loaded !== pack.bytes) throw Error("语音文件未能完整下载。");
       buffer = bytes.buffer;
       progress({ phase: "verify", loaded, total: pack.bytes });
-      if (await hash(buffer) !== pack.sha256) throw Error("음성 파일을 확인하지 못했습니다. 다시 받아주세요.");
+      if (await hash(buffer) !== pack.sha256) throw Error("无法校验语音文件。请重新下载。");
     } catch (error) {
       check(signal);
-      if (controller.signal.aborted) throw Error("음성 다운로드가 지연되고 있습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
+      if (controller.signal.aborted) throw Error("语音下载出现延迟。请检查网络连接后重试。");
       throw error;
     } finally { clearTimeout(timer); signal?.removeEventListener("abort", abort); }
   }

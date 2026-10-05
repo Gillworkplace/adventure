@@ -5,14 +5,14 @@ export function askMultiplierRoll(multiplier, anchor, signal) {
   return new Promise(resolve => {
     const form = document.createElement("form");
     form.noValidate = true;
-    form.innerHTML = `<label class="multiplier-field"><span>나온 눈의 합</span><input type="text" inputmode="numeric" enterkeyhint="done" maxlength="2" autocomplete="off" placeholder="2–12" aria-describedby="multiplier-result"></label>
-      <div class="multiplier-grid" role="group" aria-label="주사위 눈의 합"></div>
-      <div class="multiplier-detail"><output id="multiplier-result" aria-live="polite"></output><span>Enter 적용</span></div>`;
+    form.innerHTML = `<label class="multiplier-field"><span>掷出的点数之和</span><input type="text" inputmode="numeric" enterkeyhint="done" maxlength="2" autocomplete="off" placeholder="2–12" aria-describedby="multiplier-result"></label>
+      <div class="multiplier-grid" role="group" aria-label="骰子点数之和"></div>
+      <div class="multiplier-detail"><output id="multiplier-result" aria-live="polite"></output><span>Enter 应用</span></div>`;
     const input = form.querySelector("input"), grid = form.querySelector(".multiplier-grid"),
       output = form.querySelector("output"), buttons = [];
     const valid = value => /^(?:[2-9]|1[0-2])$/.test(String(value));
     const preview = value => {
-      output.textContent = valid(value) ? `${value} × ${multiplier} = ${Number(value) * multiplier}칸` : "눈의 합을 선택하세요.";
+      output.textContent = valid(value) ? `${value} × ${multiplier} = ${Number(value) * multiplier}格` : "请选择点数之和。";
     };
     const update = () => {
       input.removeAttribute("aria-invalid");
@@ -24,7 +24,7 @@ export function askMultiplierRoll(multiplier, anchor, signal) {
       if (!node.open || signal?.aborted) return;
       if (!valid(value)) {
         input.setAttribute("aria-invalid", "true");
-        output.textContent = "2~12 사이의 합을 입력하세요.";
+        output.textContent = "请输入 2~12 之间的点数之和。";
         input.focus({ preventScroll: true }); input.select();
         return;
       }
@@ -40,9 +40,9 @@ export function askMultiplierRoll(multiplier, anchor, signal) {
       grid.append(button); buttons.push(button);
     }
     const cancel = document.createElement("button");
-    cancel.type = "button"; cancel.className = "multiplier-cancel"; cancel.textContent = "취소";
+    cancel.type = "button"; cancel.className = "multiplier-cancel"; cancel.textContent = "取消";
     grid.append(cancel);
-    const node = dialog(`주사위 ${multiplier}배`, form, { className: "multiplier-dialog" });
+    const node = dialog(`骰子 ${multiplier}倍`, form, { className: "multiplier-dialog" });
     cancel.onclick = () => node.close();
     input.oninput = update;
     input.onfocus = () => input.select();

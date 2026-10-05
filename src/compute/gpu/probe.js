@@ -22,6 +22,6 @@ export async function probeGpu(backend) {
   } catch (error) {
     diagnostics.capture(error, "gpu.probe");
     controller.abort(); backend.device?.destroy();
-    return { available: false, code: error.code || (error.message === "GPU를 사용할 수 없습니다." ? "gpu-adapter" : "gpu-test"), uncertain: error.code === "check-timeout" };
+    return { available: false, code: error.code || (error.message === "无法使用 GPU。" ? "gpu-adapter" : "gpu-test"), uncertain: error.code === "check-timeout" };
   } finally { clearTimeout(timer); }
 }

@@ -47,7 +47,7 @@ function paint(item) {
   element.querySelector(".notification-message").textContent = item.message;
   const button = element.querySelector(".notification-action");
   button.hidden = !item.action;
-  button.textContent = item.actionLabel || "확인";
+  button.textContent = item.actionLabel || "确认";
   button.onclick = () => item.action?.();
 }
 
@@ -76,7 +76,7 @@ function pump() {
     item.element.dataset.notice = item.key;
     item.element.setAttribute("role", "status");
     item.element.setAttribute("aria-atomic", "true");
-    item.element.innerHTML = '<span class="notification-icon"></span><span class="notification-message"></span><button type="button" class="notification-action" hidden></button><button type="button" class="notification-close" aria-label="알림 닫기"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9"/></svg></button>';
+    item.element.innerHTML = '<span class="notification-icon"></span><span class="notification-message"></span><button type="button" class="notification-action" hidden></button><button type="button" class="notification-close" aria-label="关闭通知"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9"/></svg></button>';
     item.started = document.hidden ? hiddenAt ?? performance.now() : performance.now();
     paint(item);
     item.element.classList.add("notification-in");

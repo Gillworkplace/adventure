@@ -229,8 +229,8 @@ function updateLoadingOverlay({ progress, status, detail, step } = {}) {
 function imagesPreload() {
   updateLoadingOverlay({
     progress: 6,
-    status: '보드 이미지를 불러오고 있습니다.',
-    detail: '이미지 0 / 82',
+    status: '正在加载棋盘图片。',
+    detail: '图片 0 / 82',
     step: 0,
   });
   let loadedImages = 0;
@@ -242,30 +242,30 @@ function imagesPreload() {
     started = true;
     updateLoadingOverlay({
       progress: 72,
-      status: '보드를 초기화하고 있습니다.',
-      detail: '이벤트와 상태 정보를 준비하는 중',
+      status: '正在初始化棋盘。',
+      detail: '正在准备事件与状态信息',
       step: 1,
     });
     eventSetup();
     updateLoadingOverlay({
       progress: 82,
-      status: '계산 엔진을 점검하고 있습니다.',
-      detail: 'GPU 사용 가능 여부를 확인하는 중',
+      status: '正在检查计算引擎。',
+      detail: '正在确认 GPU 是否可用',
       step: 2,
     });
     await prepareGpuReadbackModeOnLoad();
     updateLoadingOverlay({
       progress: 96,
-      status: '계산 방식을 선택할 준비가 끝났습니다.',
-      detail: isGpuAvailable() ? 'GPU/CPU 옵션을 준비했습니다.' : 'GPU 점검 실패로 CPU 옵션만 준비했습니다.',
+      status: '计算方式选择已准备就绪。',
+      detail: isGpuAvailable() ? '已准备好 GPU/CPU 选项。' : 'GPU 检查失败，仅准备好 CPU 选项。',
       step: 2,
     });
     showComputeModeModal(() => {
       computeModeReady = true;
       updateLoadingOverlay({
         progress: 100,
-        status: '시뮬레이션을 시작합니다.',
-        detail: '잠시만 기다려 주세요.',
+        status: '开始模拟。',
+        detail: '请稍等。',
         step: 2,
       });
       hideLoadingOverlay();
@@ -278,8 +278,8 @@ function imagesPreload() {
     let imageProgress = 8 + (loadedImages / totalImages) * 58;
     updateLoadingOverlay({
       progress: imageProgress,
-      status: '보드 이미지를 불러오고 있습니다.',
-      detail: `이미지 ${loadedImages} / ${totalImages}`,
+      status: '正在加载棋盘图片。',
+      detail: `图片 ${loadedImages} / ${totalImages}`,
       step: 0,
     });
     if (loadedImages >= totalImages) startAfterImages();
@@ -433,15 +433,15 @@ function drawMainScreen() {
 
 function drawExScores() {
   if (isExScoreHighlighted(0)) {
-    drawText(`주사위: ${formatValue(env.exScores[0])}`, 14, 328, 'red', 14, 'left');
+    drawText(`骰子: ${formatValue(env.exScores[0])}`, 14, 328, 'red', 14, 'left');
   } else {
-    drawText(`주사위: ${formatValue(env.exScores[0])}`, 14, 328, 'black', 14, 'left');
+    drawText(`骰子: ${formatValue(env.exScores[0])}`, 14, 328, 'black', 14, 'left');
   }
   for (let i = 0; i < 5; i++) {
     if (isExScoreHighlighted(i + 1)) {
-      drawText(`${i + 1}번카드: ${formatValue(env.exScores[i + 1])}`, 14, 346 + i * 18, 'red', 14, 'left');
+      drawText(`${i + 1}号卡牌: ${formatValue(env.exScores[i + 1])}`, 14, 346 + i * 18, 'red', 14, 'left');
     } else {
-      drawText(`${i + 1}번카드: ${formatValue(env.exScores[i + 1])}`, 14, 346 + i * 18, 'black', 14, 'left');
+      drawText(`${i + 1}号卡牌: ${formatValue(env.exScores[i + 1])}`, 14, 346 + i * 18, 'black', 14, 'left');
     }
   }
 }
@@ -493,11 +493,11 @@ function escapeHtml(value) {
 }
 
 function getExScoreActionLabel(action) {
-  if (action === 0) return '주사위';
+  if (action === 0) return '骰子';
   const card = env.cards[action - 1];
-  if (!card) return `${action}번 카드`;
-  const cardName = userCardInfo[card[0] - 1]?.[1] || '행운 카드';
-  return `${action}번 카드 · ${cardName}`;
+  if (!card) return `${action}号卡牌`;
+  const cardName = userCardInfo[card[0] - 1]?.[1] || '幸运卡牌';
+  return `${action}号卡牌 · ${cardName}`;
 }
 
 function isExScoreActionAvailable(action) {
@@ -509,36 +509,36 @@ function formatExScoreOverviewNumber(value, formatter = formatValue) {
 }
 
 function getExScoreOverviewStatus(action) {
-  if (!isExScoreActionAvailable(action)) return { text: '비어 있음', color: '#64748b', bg: '#f1f5f9' };
-  if (env.exAction === action || env.exRecommendedActions?.includes(action)) return { text: '추천', color: '#b91c1c', bg: '#fee2e2' };
-  if (isExScoreHighlighted(action)) return { text: '근접', color: '#047857', bg: '#d1fae5' };
+  if (!isExScoreActionAvailable(action)) return { text: '空', color: '#64748b', bg: '#f1f5f9' };
+  if (env.exAction === action || env.exRecommendedActions?.includes(action)) return { text: '推荐', color: '#b91c1c', bg: '#fee2e2' };
+  if (isExScoreHighlighted(action)) return { text: '接近', color: '#047857', bg: '#d1fae5' };
 
   const raw = env.exValues?.status?.[action];
-  if (raw === '계산중') return { text: '계산중', color: '#2563eb', bg: '#dbeafe' };
-  if (raw === 'error') return { text: '오류', color: '#b91c1c', bg: '#fee2e2' };
-  if (raw === 'pruned' || raw === '제외') return { text: '제외', color: '#64748b', bg: '#f1f5f9' };
-  if (raw === 'active' || raw === '후보') return { text: '후보', color: '#1d4ed8', bg: '#dbeafe' };
+  if (raw === '计算中') return { text: '计算中', color: '#2563eb', bg: '#dbeafe' };
+  if (raw === 'error') return { text: '错误', color: '#b91c1c', bg: '#fee2e2' };
+  if (raw === 'pruned' || raw === '排除') return { text: '排除', color: '#64748b', bg: '#f1f5f9' };
+  if (raw === 'active' || raw === '候选') return { text: '候选', color: '#1d4ed8', bg: '#dbeafe' };
   return { text: '-', color: '#64748b', bg: '#f8fafc' };
 }
 
 function getExScoreOverviewLegendHtml() {
   return [
-    '<span><strong style="color:#b91c1c;">추천</strong>: 현재 평균이 가장 높은 선택</span>',
-    '<span><strong style="color:#047857;">근접</strong>: 추천과 차이가 작아 아직 우열이 애매한 선택</span>',
-    '<span><strong style="color:#1d4ed8;">후보</strong>: 추천은 아니지만 아직 제외되지 않은 선택</span>'
+    '<span><strong style="color:#b91c1c;">推荐</strong>：当前平均最高的选择</span>',
+    '<span><strong style="color:#047857;">接近</strong>：与推荐差距小、优劣尚不明确的选择</span>',
+    '<span><strong style="color:#1d4ed8;">候选</strong>：不是推荐但尚未排除的选择</span>'
   ].join('<span style="color:#cbd5e1;"> | </span>');
 }
 
 function getExScoreOverviewRowStyle(statusText, available) {
-  if (statusText === '추천') return { bg: '#fff1f2', border: '#fb7185' };
-  if (statusText === '근접') return { bg: '#ecfdf5', border: '#34d399' };
-  if (statusText === '후보') return { bg: '#eff6ff', border: '#60a5fa' };
-  if (statusText === '계산중') return { bg: '#f8fafc', border: '#93c5fd' };
+  if (statusText === '推荐') return { bg: '#fff1f2', border: '#fb7185' };
+  if (statusText === '接近') return { bg: '#ecfdf5', border: '#34d399' };
+  if (statusText === '候选') return { bg: '#eff6ff', border: '#60a5fa' };
+  if (statusText === '计算中') return { bg: '#f8fafc', border: '#93c5fd' };
   return { bg: available ? '#ffffff' : '#f8fafc', border: '#e2e8f0' };
 }
 
 function getExScoreCenterLabel() {
-  return computeSettings.engine === 'gpu' ? '평균' : '중앙값';
+  return computeSettings.engine === 'gpu' ? '平均' : '中位数';
 }
 
 function renderExScoreOverviewRoot() {
@@ -589,8 +589,8 @@ function renderExScoreOverviewRoot() {
   root.style.display = 'block';
   root.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:5px;">
-      <div style="font-weight:800;font-size:13px;">예상 점수 전체 비교</div>
-      <div style="color:#64748b;font-size:11px;">6개 case</div>
+      <div style="font-weight:800;font-size:13px;">预期得分整体对比</div>
+      <div style="color:#64748b;font-size:11px;">6 个 case</div>
     </div>
     <div style="font-size:11px;line-height:1.45;color:#334155;margin-bottom:7px;">${getExScoreOverviewLegendHtml()}</div>
     <table style="width:100%;border-collapse:collapse;table-layout:auto;">
@@ -598,11 +598,11 @@ function renderExScoreOverviewRoot() {
         <tr style="color:#475569;background:#f8fafc;">
           <th style="padding:5px 8px;text-align:left;font-weight:700;">case</th>
           <th style="padding:5px 8px;text-align:right;font-weight:700;">${getExScoreCenterLabel()}</th>
-          <th style="padding:5px 8px;text-align:right;font-weight:700;">범위</th>
+          <th style="padding:5px 8px;text-align:right;font-weight:700;">范围</th>
           <th style="padding:5px 8px;text-align:right;font-weight:700;">95% CI</th>
-          <th style="padding:5px 8px;text-align:right;font-weight:700;">샘플</th>
-          <th style="padding:5px 8px;text-align:right;font-weight:700;">추천차</th>
-          <th style="padding:5px 8px;text-align:center;font-weight:700;">상태</th>
+          <th style="padding:5px 8px;text-align:right;font-weight:700;">样本</th>
+          <th style="padding:5px 8px;text-align:right;font-weight:700;">推荐差</th>
+          <th style="padding:5px 8px;text-align:center;font-weight:700;">状态</th>
         </tr>
       </thead>
       <tbody>${rows.join('')}</tbody>
@@ -630,7 +630,7 @@ function positionExScoreOverviewRoot(root) {
 
 function formatValue(value) {
   if (typeof value === 'number') {
-    return value.toFixed(3) + '점';
+    return value.toFixed(3) + '分';
   } else {
     return value;
   }
@@ -729,16 +729,16 @@ function drawStatusBar() {
   let stageNum = stage[env.score - 1][1];
   drawText(`${stageNum}.${stageNames[stageNum - 1]}`, 104, 210, 'white', 12, 'center');
   drawText(env.score, 122, 57, 'white', 12, 'right');
-  drawText('칸', 130, 57, 'rgb(255, 240, 140)', 12, 'left');
+  drawText('格', 130, 57, 'rgb(255, 240, 140)', 12, 'left');
   drawRadiusRect(x = 70, y = 228, width = 65, height = 19, radius = 8, opacity = 0.1, 'black');
   drawText(stage[env.score - 1][2], 104, 238, 'rgb(255, 240, 140)', 12, 'center');
   drawRadiusRect(x = 9, y = 286, width = 192, height = 145, radius = 4, opacity = 1, color = 'white');
   drawRadiusRect(x = 11, y = 288, width = 188, height = 25, radius = 4, opacity = 1, color = 'rgb(159, 252, 243)');
   drawRadiusRect(x = 12, y = 289, width = 186, height = 11, radius = 2, opacity = 0.4, color = 'white');
-  drawText('예상 점수', 105, 301, 'rgb(34, 82, 96)', 12, 'center');
+  drawText('预期得分', 105, 301, 'rgb(34, 82, 96)', 12, 'center');
   drawRadiusRect(x = 8, y = 436, width = 193, height = 81, radius = 4, opacity = 1, color = 'white');
   drawRadiusRect(x = 12, y = 439, width = 186, height = 22, radius = 4, opacity = 1, color = 'rgb(62, 136, 171)');
-  drawText('주사위 이동', 105, 451, 'white', 12, 'center');
+  drawText('骰子移动', 105, 451, 'white', 12, 'center');
   drawRadiusRect(x = 9, y = 525, width = 192, height = 97, radius = 18, opacity = 1, color = 'white');
   if (env.isDouble) {
     drawRadiusRect(x = 15, y = 531, width = 180, height = 85, radius = 10, opacity = 1, color = 'rgb(56, 123, 214)', 'rgb(121, 238, 199)');
@@ -751,15 +751,15 @@ function drawStatusBar() {
   }
   drawRadiusRect(x = 10, y = 631, width = 190, height = 26, radius = 8, opacity = 1, color = 'rgb(209, 57, 73)');
   drawRadiusRect(x = 10, y = 660, width = 190, height = 26, radius = 8, opacity = 1, color = 'rgb(48, 66, 101)');
-  drawText('주사위 보유 :', 19, 645, 'white', 12, 'left');
-  let textDiceUse = `주사위 사용 횟수${' '.repeat(12)}/ 100`;
+  drawText('骰子持有 :', 19, 645, 'white', 12, 'left');
+  let textDiceUse = `骰子使用次数${' '.repeat(12)}/ 100`;
   let textDiceUseWidth = ctx.measureText(textDiceUse).width;
   drawText(textDiceUse, 19, 674, 'white', 12, 'left');
   drawText(`${env.diceUse}`, textDiceUseWidth - 16, 674, 'rgb(144, 202, 247)', 12, 'right');
   drawRadiusRect(x = 216, y = 634, width = 1011, height = 53, radius = 10, opacity = 0.5, color = 'black');
   drawRadiusRect(x = 223, y = 646, width = 190, height = 31, radius = 8, opacity = 1, color = 'black');
-  drawText(`최고 기록:`, 240, 662, 'rgb(254, 245, 187)', 12, 'left');
-  drawText(`${maxScore} 칸`, 396, 662, 'rgb(255, 175, 136)', 12, 'right');
+  drawText(`最高纪录:`, 240, 662, 'rgb(254, 245, 187)', 12, 'left');
+  drawText(`${maxScore} 格`, 396, 662, 'rgb(255, 175, 136)', 12, 'right');
   for (let i = 0; i < 5; i++) {
     drawRadiusRect(x = 420 + i * 44, y = 640, width = 42, height = 42, radius = 10, opacity = 1, color = 'rgb(149, 191, 203)');
     drawRadiusRect(x = 423 + i * 44, y = 643, width = 36, height = 36, radius = 8, opacity = 1, color = 'rgb(42, 88, 114)', colorEnd = 'rgb(38, 151, 172)');
@@ -784,9 +784,9 @@ function drawStatusBar() {
   ctx.fillText('?', 661, 661);
   ctx.shadowColor = 'rgba(0, 0, 0, 0)';
   ctx.shadowBlur = 0;
-  drawBtn(btnText = '재시작', x = 690, y = 642, width = 90, height = 38, radius = 12, opacity = 1, lineColor = 'rgb(53, 79, 108)', fillColor = 'rgb(45, 137, 195)', textColor = 'white', fontSize = 12, hover = uiHoverTarget === 'reset');
-  drawBtn(btnText = '모드변경', x = 788, y = 642, width = 90, height = 38, radius = 12, opacity = 1, lineColor = 'rgb(53, 79, 108)', fillColor = 'rgb(45, 137, 195)', textColor = 'white', fontSize = 12, hover = uiHoverTarget === 'mode');
-  drawBtn(btnText = '도움말', x = 886, y = 642, width = 90, height = 38, radius = 12, opacity = 1, lineColor = 'rgb(53, 79, 108)', fillColor = 'rgb(45, 137, 195)', textColor = 'white', fontSize = 12, hover = uiHoverTarget === 'help');
+  drawBtn(btnText = '重新开始', x = 690, y = 642, width = 90, height = 38, radius = 12, opacity = 1, lineColor = 'rgb(53, 79, 108)', fillColor = 'rgb(45, 137, 195)', textColor = 'white', fontSize = 12, hover = uiHoverTarget === 'reset');
+  drawBtn(btnText = '切换模式', x = 788, y = 642, width = 90, height = 38, radius = 12, opacity = 1, lineColor = 'rgb(53, 79, 108)', fillColor = 'rgb(45, 137, 195)', textColor = 'white', fontSize = 12, hover = uiHoverTarget === 'mode');
+  drawBtn(btnText = '帮助', x = 886, y = 642, width = 90, height = 38, radius = 12, opacity = 1, lineColor = 'rgb(53, 79, 108)', fillColor = 'rgb(45, 137, 195)', textColor = 'white', fontSize = 12, hover = uiHoverTarget === 'help');
   if (uiHoverTarget === 'prevStage') {
     drawIconHoverGlow(1103, 637, 60, 48, 16);
   }
@@ -876,10 +876,10 @@ function getStageRowByScore(score) {
 }
 
 function getPredictionEventName(type) {
-  if (type === 2) return '카드칸';
-  if (type === 4) return '점프칸';
-  if (type === 6 || type === 9) return '멈춤칸';
-  return '일반칸';
+  if (type === 2) return '卡牌格';
+  if (type === 4) return '跳跃格';
+  if (type === 6 || type === 9) return '停顿格';
+  return '普通格';
 }
 
 function getPredictionClass(type, jumpTotal, stopActive = true) {
@@ -921,7 +921,7 @@ function getPredictionAverageDelta(analysis) {
 function formatPredictionAverageDelta(value) {
   const rounded = Math.round(value * 10) / 10;
   const absText = Number.isInteger(Math.abs(rounded)) ? String(Math.abs(rounded)) : Math.abs(rounded).toFixed(1);
-  return `${rounded > 0 ? '+' : rounded < 0 ? '-' : '±'}${absText}칸`;
+  return `${rounded > 0 ? '+' : rounded < 0 ? '-' : '±'}${absText}格`;
 }
 
 function getPredictionAverageDeltaColor(value) {
@@ -1082,9 +1082,9 @@ function getPredictionCardAnalysis(cardIndex) {
   const card = env.cards[cardIndex];
   if (!card) return null;
 
-  const cardName = userCardInfo[card[0] - 1]?.[1] || '행운 카드';
+  const cardName = userCardInfo[card[0] - 1]?.[1] || '幸运卡牌';
   if (card[1] === 2) {
-    const analysis = getPredictionDiceAnalysis(card[2], false, `${cardIndex + 1}번 카드: ${cardName}`);
+    const analysis = getPredictionDiceAnalysis(card[2], false, `${cardIndex + 1}号卡牌: ${cardName}`);
     analysis.anchorCardIndex = cardIndex;
     return analysis;
   }
@@ -1102,11 +1102,11 @@ function getPredictionCardAnalysis(cardIndex) {
     denom: 1,
     dest,
     pulseKind: 'fixed',
-    labels: [card[1] === 3 ? '스테이지 이동' : `${move > 0 ? '+' : ''}${move}칸`]
+    labels: [card[1] === 3 ? '关卡移动' : `${move > 0 ? '+' : ''}${move}格`]
   };
 
   return {
-    title: `${cardIndex + 1}번 카드: ${cardName}`,
+    title: `${cardIndex + 1}号卡牌: ${cardName}`,
     kind: 'fixed',
     diceUseDelta: getPredictionActionDiceUseDelta(false),
     anchorCardIndex: cardIndex,
@@ -1117,14 +1117,14 @@ function getPredictionCardAnalysis(cardIndex) {
 
 function getActivePredictionAnalysis() {
   if (usagePreviewState.prediction === 'dice') {
-    return getPredictionDiceAnalysis(1, true, '주사위 굴리기');
+    return getPredictionDiceAnalysis(1, true, '掷骰子');
   }
   if (usagePreviewState.prediction === 'card') {
     const cardIndex = getFirstAvailableCardIndex();
     return cardIndex >= 0 ? getPredictionCardAnalysis(cardIndex) : null;
   }
   if (showDiceOverlay) {
-    return getPredictionDiceAnalysis(1, true, '주사위 굴리기');
+    return getPredictionDiceAnalysis(1, true, '掷骰子');
   }
   if (showCardPos >= 0) {
     return getPredictionCardAnalysis(showCardPos);
@@ -1202,7 +1202,7 @@ function drawPredictionOnCurrentStage(analysis) {
   analysis.outcomes.forEach(item => {
     const rect = getPredictionCellRect(item.score);
     if (!rect || rect.stageId !== currentStageId) return;
-    const text = item.denom === 1 ? '확정' : getPredictionPct(item.count, item.denom);
+    const text = item.denom === 1 ? '确定' : getPredictionPct(item.count, item.denom);
     const pulseBounds = getCurrentStagePulseBounds(rect);
     drawPredictionPulse(ctx, pulseBounds.x, pulseBounds.y, pulseBounds.w, pulseBounds.h, false, item.pulseKind);
     drawPredictionPill(ctx, text, rect.x + rect.w / 2, rect.y + 18, item.dest.className, false);
@@ -1372,14 +1372,14 @@ function renderPredictionOverlayRoot(analysis) {
   root.style.display = 'block';
   root.innerHTML = `
     <div style="font-weight:800;font-size:13px;margin-bottom:6px;white-space:nowrap;">
-      <span style="color:#0f172a;">평균 이동 </span><span style="color:${averageDeltaColor};">${averageDeltaText}</span>
+      <span style="color:#0f172a;">平均移动 </span><span style="color:${averageDeltaColor};">${averageDeltaText}</span>
       <span style="color:#94a3b8;"> / </span>
-      <span style="color:#0f172a;">기대값 </span><span style="color:${ratioDeltaColor};">${ratioDeltaText}</span>
+      <span style="color:#0f172a;">期望值 </span><span style="color:${ratioDeltaColor};">${ratioDeltaText}</span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:${hasOffStage ? 9 : 0}px;">
-      <div style="border-radius:6px;background:#f3e8ff;padding:6px;text-align:center;"><strong style="color:#6d28d9;">카드칸</strong><br>${getPredictionPct(stats.card, denom)}</div>
-      <div style="border-radius:6px;background:#ffedd5;padding:6px;text-align:center;"><strong style="color:#c2410c;">점프칸</strong><br>${getPredictionPct(stats.jump, denom)}</div>
-      <div style="border-radius:6px;background:#fee2e2;padding:6px;text-align:center;"><strong style="color:#b91c1c;">멈춤칸</strong><br>${getPredictionPct(stats.stop, denom)}</div>
+      <div style="border-radius:6px;background:#f3e8ff;padding:6px;text-align:center;"><strong style="color:#6d28d9;">卡牌格</strong><br>${getPredictionPct(stats.card, denom)}</div>
+      <div style="border-radius:6px;background:#ffedd5;padding:6px;text-align:center;"><strong style="color:#c2410c;">跳跃格</strong><br>${getPredictionPct(stats.jump, denom)}</div>
+      <div style="border-radius:6px;background:#fee2e2;padding:6px;text-align:center;"><strong style="color:#b91c1c;">停顿格</strong><br>${getPredictionPct(stats.stop, denom)}</div>
     </div>
     <div data-prediction-stages style="display:flex;gap:${gap}px;align-items:flex-start;overflow:hidden;"></div>
   `;
@@ -1420,7 +1420,7 @@ function renderPredictionOverlayRoot(analysis) {
       if (getStageRowByScore(item.score)[1] !== stageId) return;
       const rect = getPredictionCellRect(item.score, true);
       if (!rect) return;
-      const label = item.denom === 1 ? '확정' : getPredictionPct(item.count, item.denom);
+      const label = item.denom === 1 ? '确定' : getPredictionPct(item.count, item.denom);
       drawPredictionPulse(g, rect.x * stageScale, 24 + rect.y * stageScale, rect.w * stageScale, rect.h * stageScale, true, item.pulseKind);
       drawPredictionPill(g, label, (rect.x + rect.w / 2) * stageScale, 24 + (rect.y + 17) * stageScale, item.dest.className, true, { x: 0, y: 24, w: canvasW, h: canvasH }, pillFontSize);
     });
@@ -1926,12 +1926,12 @@ function eventCanvasClick(e) {
       calcEx();
     } else {
       let name;
-      name = prompt('행운카드 이름');
+      name = prompt('幸运卡牌名称');
       if (name !== undefined && name !== '') {
-        name = name.replace('+', '앞으로 ');
-        name = name.replace('-', '뒤로 ');
-        name = name.replace('*', '주사위 ');
-        name = name.replace(/^>.*/, '다음 스테이지');
+        name = name.replace('+', '前进 ');
+        name = name.replace('-', '后退 ');
+        name = name.replace('*', '骰子 ');
+        name = name.replace(/^>.*/, '下一关卡');
         for (let i = 0; i < env.cardInfo.length; i++) {
           if (userCardInfo[i][1].indexOf(name) >= 0 && env.cardInfo[i][3] === 0) {
             env.getCard(i);
@@ -1942,7 +1942,7 @@ function eventCanvasClick(e) {
       }
     }
   } else if (isInsideRegion(x, y, REGION_SCORE)) {
-    let n = prompt('이동', env.score);
+    let n = prompt('移动', env.score);
     if (n === null || n == '') return;
     n = Number(n);
     if (!isNaN(n) && n > 0 && n <= 2898) {
@@ -1951,10 +1951,10 @@ function eventCanvasClick(e) {
       env.checkEvent();
       calcEx();
     } else {
-      alert('올바른 숫자를 입력하세요.');
+      alert('请输入正确的数字。');
     }
   } else if (isInsideRegion(x, y, REGION_DICEUSE)) {
-    let n = prompt('주사위 사용 횟수', env.diceUse);
+    let n = prompt('骰子使用次数', env.diceUse);
     if (n === null) return;
     n = Number(n);
     if (!isNaN(n) && n >= 0 && n <= 100) {
@@ -1962,7 +1962,7 @@ function eventCanvasClick(e) {
       env.rankReg = true;
       calcEx();
     } else {
-      alert('올바른 숫자를 입력하세요.');
+      alert('请输入正确的数字。');
     }
   } else if (!showCardInfoYN && isInsideRegion(x, y, REGION_BTN_CARDINFO)) {
     showCardInfoYN = true;
@@ -1982,18 +1982,18 @@ function eventCanvasClick(e) {
   } else if (isInsideRegion(x, y, REGION_BTN_ACCURACY)) {
     showComputeModeModal(() => calcEx());
   } else if (isInsideRegion(x, y, REGION_BTN_CHANGEMODE)) {
-    if (confirm(`동작 모드를 ${env.autoProcess ? '수동' : '자동'}으로 변경하시겠습니까?`)) {
+    if (confirm(`要将运行模式切换为${env.autoProcess ? '手动' : '自动'}吗？`)) {
       env.changeMode();
       done = false;
       calcEx();
       if (env.autoProcess) {
-        alert('동작 모드가 자동 모드로 변경되었습니다.')
+        alert('运行模式已切换为自动模式。')
       } else {
-        alert('동작 모드가 수동 모드로 변경되었습니다.')
+        alert('运行模式已切换为手动模式。')
       }
     }
   } else if (isInsideRegion(x, y, REGION_BTN_RESETBOARD)) {
-    if (confirm('게임을 다시 시작하시겠습니까?')) {
+    if (confirm('要重新开始游戏吗？')) {
       env.resetBoard();
       done = false;
       calcEx();
@@ -2045,7 +2045,7 @@ function eventKeydown(e) {
   } else if (keyDownCtrl && e.key === 'q') {
     e.preventDefault();
     if (!env.autoProcess) {
-      let n = prompt('이동', env.score);
+      let n = prompt('移动', env.score);
       if (n === null || n == '') return;
       n = Number(n);
       if (!isNaN(n) && n > 0 && n < 2898) {
@@ -2054,14 +2054,14 @@ function eventKeydown(e) {
         env.checkEvent();
         calcEx();
       } else {
-        alert('올바른 숫자를 입력하세요.');
+        alert('请输入正确的数字。');
       }
       keyDownCtrl = false;
     }
   } else if (keyDownCtrl && e.key === 'e') {
     e.preventDefault();
     if (!env.autoProcess) {
-      let n = prompt('주사위 사용 횟수', env.diceUse);
+      let n = prompt('骰子使用次数', env.diceUse);
       if (n === null) return;
       n = Number(n);
       if (!isNaN(n) && n >= 0 && n <= 100) {
@@ -2069,7 +2069,7 @@ function eventKeydown(e) {
         env.rankReg = true;
         calcEx();
       } else {
-        alert('올바른 숫자를 입력하세요.');
+        alert('请输入正确的数字。');
       }
       keyDownCtrl = false;
     }
@@ -2079,12 +2079,12 @@ function eventKeydown(e) {
   } else if (keyDownCtrl && e.key === 'g') {
     e.preventDefault();
     let name;
-    name = prompt('행운카드 이름');
+    name = prompt('幸运卡牌名称');
     if (name !== undefined && name !== '') {
-      name = name.replace('+', '앞으로 ');
-      name = name.replace('-', '뒤로 ');
-      name = name.replace('*', '주사위 ');
-      name = name.replace(/^>.*/, '다음 스테이지');
+      name = name.replace('+', '前进 ');
+      name = name.replace('-', '后退 ');
+      name = name.replace('*', '骰子 ');
+      name = name.replace(/^>.*/, '下一关卡');
       for (let i = 0; i < env.cardInfo.length; i++) {
         if (userCardInfo[i][1].indexOf(name) >= 0 && env.cardInfo[i][3] === 0) {
           env.getCard(i);
@@ -2103,12 +2103,12 @@ function eventKeydown(e) {
       calcEx();
     } else {
       let name;
-      name = prompt('행운카드 이름');
+      name = prompt('幸运卡牌名称');
       if (name !== undefined && name !== '') {
-        name = name.replace('+', '앞으로 ');
-        name = name.replace('-', '뒤로 ');
-        name = name.replace('*', '주사위 ');
-        name = name.replace(/^>.*/, '다음 스테이지');
+        name = name.replace('+', '前进 ');
+        name = name.replace('-', '后退 ');
+        name = name.replace('*', '骰子 ');
+        name = name.replace(/^>.*/, '下一关卡');
         for (let i = 0; i < env.cardInfo.length; i++) {
           if (userCardInfo[i][1].indexOf(name) >= 0 && env.cardInfo[i][3] === 0) {
             env.getCard(i);
@@ -2140,12 +2140,12 @@ function newEventKeydown(e) {
       calcEx();
     } else {
       let name;
-      name = prompt('행운카드 이름');
+      name = prompt('幸运卡牌名称');
       if (name !== undefined && name !== '') {
-        name = name.replace('+', '앞으로 ');
-        name = name.replace('-', '뒤로 ');
-        name = name.replace('*', '주사위 ');
-        name = name.replace(/^>.*/, '다음 스테이지');
+        name = name.replace('+', '前进 ');
+        name = name.replace('-', '后退 ');
+        name = name.replace('*', '骰子 ');
+        name = name.replace(/^>.*/, '下一关卡');
         for (let i = 0; i < env.cardInfo.length; i++) {
           if (userCardInfo[i][1].indexOf(name) >= 0 && env.cardInfo[i][3] === 0) {
             env.getCard(i);
@@ -2157,7 +2157,7 @@ function newEventKeydown(e) {
     }
   } else if (e.key === '1') {
     if (!env.autoProcess) {
-      let n = prompt('이동', env.score);
+      let n = prompt('移动', env.score);
       if (n === null || n == '') return;
       n = Number(n);
       if (!isNaN(n) && n > 0 && n < 2898) {
@@ -2166,12 +2166,12 @@ function newEventKeydown(e) {
         env.checkEvent();
         calcEx();
       } else {
-        alert('올바른 숫자를 입력하세요.');
+        alert('请输入正确的数字。');
       }
     }
   } else if (e.key === '2') {
     if (!env.autoProcess) {
-      let n = prompt('주사위 사용 횟수', env.diceUse);
+      let n = prompt('骰子使用次数', env.diceUse);
       if (n === null) return;
       n = Number(n);
       if (!isNaN(n) && n >= 0 && n <= 100) {
@@ -2179,7 +2179,7 @@ function newEventKeydown(e) {
         env.rankReg = true;
         calcEx();
       } else {
-        alert('올바른 숫자를 입력하세요.');
+        alert('请输入正确的数字。');
       }
     }
   } else if (keyDownCtrl && e.key === 'r') {
@@ -2187,12 +2187,12 @@ function newEventKeydown(e) {
     calcEx();
   } else if (e.key === '3') {
     let name;
-    name = prompt('행운카드 이름');
+    name = prompt('幸运卡牌名称');
     if (name !== undefined && name !== '') {
-      name = name.replace('+', '앞으로 ');
-      name = name.replace('-', '뒤로 ');
-      name = name.replace('*', '주사위 ');
-      name = name.replace(/^>.*/, '다음 스테이지');
+      name = name.replace('+', '前进 ');
+      name = name.replace('-', '后退 ');
+      name = name.replace('*', '骰子 ');
+      name = name.replace(/^>.*/, '下一关卡');
       for (let i = 0; i < env.cardInfo.length; i++) {
         if (userCardInfo[i][1].indexOf(name) >= 0 && env.cardInfo[i][3] === 0) {
           env.getCard(i);
@@ -3194,18 +3194,18 @@ async function waitComputePerfBenchmarkIdle() {
 
 function getComputePerfText(engine, key) {
   let stat = computePerfStats[engine] && computePerfStats[engine][key];
-  if (stat && stat.running) return `계산중입니다. [${getComputePerfProgressPct(engine, key)}%]`;
-  if (stat && stat.error) return '이 기기에서 측정하지 못했습니다.';
-  if (!stat) return '이 기기에서 첫 계산 후 추론 시간을 표시합니다.';
-  let label = stat.estimated ? '예상 추론 시간' : '측정한 추론 시간';
-  return `이 기기에서 ${label}은 약 ${Math.round(stat.avgMs)}ms/회입니다.`;
+  if (stat && stat.running) return `计算中。 [${getComputePerfProgressPct(engine, key)}%]`;
+  if (stat && stat.error) return '无法在本设备上完成测量。';
+  if (!stat) return '在本设备上首次计算后显示推理时间。';
+  let label = stat.estimated ? '预估推理时间' : '实测推理时间';
+  return `本设备${label}约为 ${Math.round(stat.avgMs)}ms/次。`;
 }
 
 function getComputePerfHtml(engine, key) {
   let stat = computePerfStats[engine] && computePerfStats[engine][key];
   if (!stat || stat.running || stat.error || stat.count <= 0) return getComputePerfText(engine, key);
-  let label = stat.estimated ? '예상 추론 시간' : '측정한 추론 시간';
-  return `이 기기에서 ${label}은 약 <strong style="color:#0f172a;font-weight:800;">${Math.round(stat.avgMs)}ms/회</strong>입니다.`;
+  let label = stat.estimated ? '预估推理时间' : '实测推理时间';
+  return `本设备${label}约为 <strong style="color:#0f172a;font-weight:800;">${Math.round(stat.avgMs)}ms/次</strong>。`;
 }
 
 function getComputePerfProgressPct(engine, key) {
@@ -3300,7 +3300,7 @@ function updateComputeOverallProgressUI() {
   let text = box.querySelector('[data-overall-perf-text]');
   let fill = box.querySelector('[data-overall-perf-fill]');
   box.style.display = computePerfBenchmarkRunning || pct > 0 ? 'block' : 'none';
-  if (text) text.textContent = `추천 항목 계산중입니다. [${pct}%]`;
+  if (text) text.textContent = `正在计算推荐选项。 [${pct}%]`;
   if (fill) fill.style.width = `${pct}%`;
   scheduleComputeModeModalFit();
 }
@@ -3393,9 +3393,9 @@ function markGpuUnavailable(reason) {
 }
 
 function getGpuUnavailableMessage() {
-  if (!navigator.gpu) return 'WebGPU를 사용할 수 없어 CPU 엔진으로 시작합니다.';
-  if (gpuDisabledReason) return '현재 GPU가 시뮬레이션 엔진과 호환되지 않아 CPU 엔진으로 시작합니다.';
-  return 'GPU 엔진을 사용할 수 없어 CPU 엔진으로 시작합니다.';
+  if (!navigator.gpu) return '无法使用 WebGPU，将使用 CPU 引擎启动。';
+  if (gpuDisabledReason) return '当前 GPU 与模拟引擎不兼容，将使用 CPU 引擎启动。';
+  return '无法使用 GPU 引擎，将使用 CPU 引擎启动。';
 }
 
 function createGpuSelfTestState({ diceUse = 0, isDouble = 0 } = {}) {
@@ -4633,7 +4633,7 @@ function calcEx(r = [0, 1, 2, 3, 4, 5]) {
       env.exValues.se[i] = 0;
       env.exValues.gap[i] = 0;
       env.exValues.z[i] = 0;
-      env.exValues.status[i] = '계산중';
+      env.exValues.status[i] = '计算中';
     }
   }
 
@@ -4716,7 +4716,7 @@ function calcEx(r = [0, 1, 2, 3, 4, 5]) {
       const canonicalAction = getCanonicalRolloutAction(action, actionEquivalence);
       let summary = decision.summaries[canonicalAction];
       let recommended = canonicalAction === decision.bestAction;
-      env.exValues.status[action] = recommended ? '추천' : activeActionSet.has(canonicalAction) ? '후보' : '제외';
+      env.exValues.status[action] = recommended ? '推荐' : activeActionSet.has(canonicalAction) ? '候选' : '排除';
       if (summary.count === 0 && actionStats[canonicalAction].count === 0) {
         env.exValues.gap[action] = 0;
         env.exValues.z[action] = 0;
@@ -4921,20 +4921,20 @@ function showComputeModeModal(onDone) {
   let selectedCpuPolicy = computeSettings.cpuPolicy === 'quality' ? 'quality' : 'fast';
   let selectedGpuUsage = computeSettings.gpuUsage || 'medium';
   let gpuCardDetail = gpuAvailable
-    ? '브라우저/GPU 지원이 필요하지만 점수 기대와 응답 속도를 함께 가져가기 좋습니다.'
-    : '호환되지 않는 GPU로 감지되어 이 기기에서는 GPU 엔진을 사용할 수 없습니다.';
+    ? '需要浏览器/GPU 支持，但能兼顾分数期望与响应速度。'
+    : '检测到不兼容的 GPU，本设备无法使用 GPU 引擎。';
   let gpuCardBadge = gpuAvailable
-    ? '<span data-engine-recommend-badge style="display:none;align-items:center;border-radius:999px;background:#16a34a;color:white;font-size:11px;font-weight:700;padding:2px 7px;">추천</span>'
-    : '<span style="display:inline-flex;align-items:center;border-radius:999px;background:#fee2e2;color:#991b1b;font-size:11px;font-weight:800;padding:2px 7px;">사용 불가</span>';
+    ? '<span data-engine-recommend-badge style="display:none;align-items:center;border-radius:999px;background:#16a34a;color:white;font-size:11px;font-weight:700;padding:2px 7px;">推荐</span>'
+    : '<span style="display:inline-flex;align-items:center;border-radius:999px;background:#fee2e2;color:#991b1b;font-size:11px;font-weight:800;padding:2px 7px;">不可用</span>';
   let gpuCardStyle = gpuAvailable
     ? 'display:block;border:1px solid #2563eb;border-radius:8px;padding:12px;cursor:pointer;background:#eff6ff;'
     : 'display:block;border:1px solid #fecaca;border-radius:8px;padding:12px;cursor:not-allowed;background:#fff1f2;opacity:0.9;';
   let cpuWorkerCards = cpuWorkerCandidates.map(value => {
-    let label = value === 1 ? '낮음' : (value === maxWorkerCount ? '높음' : '보통');
+    let label = value === 1 ? '低' : (value === maxWorkerCount ? '高' : '中');
     let isDefault = value === defaultCpuWorkers;
     let checked = value === selectedCpuWorkers ? ' checked' : '';
-    let defaultText = isDefault ? ' (기본값)' : '';
-    let detail = value === 1 ? '최소' : (value === maxWorkerCount ? '물리 코어 추정 기준 최대' : '물리 코어 추정 기준 중간');
+    let defaultText = isDefault ? ' (默认)' : '';
+    let detail = value === 1 ? '最少' : (value === maxWorkerCount ? '按物理核心估算的上限' : '按物理核心估算的中间档');
     return `
       <label data-option-engine="cpu" data-option-key="${value}" style="display:block;border:1px solid #cbd5e1;border-radius:8px;padding:10px;cursor:pointer;background:#f8fafc;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px;">
@@ -4942,9 +4942,9 @@ function showComputeModeModal(onDone) {
             <input type="radio" name="cpu-workers" value="${value}" data-usage="${label}"${checked}>
             <strong>${label}${defaultText}</strong>
           </span>
-          <span data-recommend-badge style="display:none;align-items:center;border-radius:999px;background:#16a34a;color:white;font-size:11px;font-weight:700;padding:2px 7px;">추천</span>
+          <span data-recommend-badge style="display:none;align-items:center;border-radius:999px;background:#16a34a;color:white;font-size:11px;font-weight:700;padding:2px 7px;">推荐</span>
         </div>
-        <div style="font-size:12px;line-height:1.4;color:#334155;">${detail} / worker ${value}개</div>
+        <div style="font-size:12px;line-height:1.4;color:#334155;">${detail} / worker ${value} 个</div>
         <div data-perf-text data-perf-engine="cpu" data-perf-key="${value}" style="font-size:12px;line-height:1.4;color:#64748b;margin-top:5px;">${getComputePerfHtml('cpu', String(value))}</div>
         <div data-perf-progress style="display:none;height:3px;background:#e2e8f0;border-radius:999px;overflow:hidden;margin-top:8px;">
           <div data-perf-progress-fill style="height:100%;width:0%;background:#2563eb;border-radius:999px;transition:width 120ms linear;"></div>
@@ -4952,8 +4952,8 @@ function showComputeModeModal(onDone) {
       </label>`;
   }).join('');
   let cpuPolicyCards = [
-    { key: 'fast', label: 'Fast', detail: '빠른 판단 기반입니다. CPU 기본값이며 반응성이 가장 좋습니다.' },
-    { key: 'quality', label: 'Quality', detail: '점수 기대를 더 보는 판단입니다. CPU에서는 계산 시간이 크게 늘 수 있습니다.' },
+    { key: 'fast', label: 'Fast', detail: '偏快速判断。CPU 默认选项，响应速度最好。' },
+    { key: 'quality', label: 'Quality', detail: '更看重分数期望的判断。在 CPU 上计算时间可能大幅增加。' },
   ].map(option => `
       <label style="display:block;border:1px solid #cbd5e1;border-radius:8px;padding:10px;cursor:pointer;background:#f8fafc;">
         <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;">
@@ -4963,9 +4963,9 @@ function showComputeModeModal(onDone) {
         <div style="font-size:12px;line-height:1.4;color:#334155;">${option.detail}</div>
       </label>`).join('');
   let gpuUsageCards = [
-    { key: 'low', label: '낮음', detail: '다른 작업 우선', defaultText: '' },
-    { key: 'medium', label: '보통', detail: '균형', defaultText: ' (기본값)' },
-    { key: 'high', label: '높음', detail: '빠른 계산 우선', defaultText: '' },
+    { key: 'low', label: '低', detail: '优先其他任务', defaultText: '' },
+    { key: 'medium', label: '中', detail: '均衡', defaultText: ' (默认)' },
+    { key: 'high', label: '高', detail: '优先快速计算', defaultText: '' },
   ].map(option => `
       <label data-option-engine="gpu" data-option-key="${option.key}" style="display:block;border:1px solid #cbd5e1;border-radius:8px;padding:10px;cursor:pointer;background:#f8fafc;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px;">
@@ -4973,7 +4973,7 @@ function showComputeModeModal(onDone) {
             <input type="radio" name="gpu-usage" value="${option.key}"${option.key === selectedGpuUsage ? ' checked' : ''}>
             <strong>${option.label}${option.defaultText}</strong>
           </span>
-          <span data-recommend-badge style="display:none;align-items:center;border-radius:999px;background:#16a34a;color:white;font-size:11px;font-weight:700;padding:2px 7px;">추천</span>
+          <span data-recommend-badge style="display:none;align-items:center;border-radius:999px;background:#16a34a;color:white;font-size:11px;font-weight:700;padding:2px 7px;">推荐</span>
         </div>
         <div style="font-size:12px;line-height:1.4;color:#334155;">${option.detail}</div>
         <div data-perf-text data-perf-engine="gpu" data-perf-key="${option.key}" style="font-size:12px;line-height:1.4;color:#64748b;margin-top:5px;">${getComputePerfHtml('gpu', option.key)}</div>
@@ -4983,16 +4983,16 @@ function showComputeModeModal(onDone) {
       </label>`).join('');
 
   card.innerHTML = `
-    <div style="font-size:20px;font-weight:700;color:#0f172a;margin-bottom:6px;">계산 방식 선택</div>
+    <div style="font-size:20px;font-weight:700;color:#0f172a;margin-bottom:6px;">选择计算方式</div>
     <div style="font-size:13px;line-height:1.55;color:#475569;margin-bottom:16px;">
-      GPU는 점수 기대와 응답 속도를 함께 가져가기 좋은 기본 선택지입니다. CPU는 호환성이 좋고, 필요하면 빠른 판단과 품질 판단 중 선택할 수 있습니다.
+      GPU 是兼顾分数期望与响应速度的默认选择。CPU 兼容性好，需要时可在快速判断与品质判断之间选择。
     </div>
     <div id="compute-engine-options" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
       <label id="compute-gpu-card" style="${gpuCardStyle}">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
           <span style="display:flex;align-items:center;gap:8px;">
             <input type="radio" name="compute-engine" value="gpu" ${gpuAvailable ? 'checked' : 'disabled'}>
-            <strong>GPU 계산 엔진</strong>
+            <strong>GPU 计算引擎</strong>
           </span>
           ${gpuCardBadge}
         </div>
@@ -5002,39 +5002,39 @@ function showComputeModeModal(onDone) {
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
           <span style="display:flex;align-items:center;gap:8px;">
             <input type="radio" name="compute-engine" value="cpu" ${gpuAvailable ? '' : 'checked'}>
-            <strong>CPU 계산 엔진</strong>
+            <strong>CPU 计算引擎</strong>
           </span>
-          <span data-engine-recommend-badge style="display:none;align-items:center;border-radius:999px;background:#16a34a;color:white;font-size:11px;font-weight:700;padding:2px 7px;">추천</span>
+          <span data-engine-recommend-badge style="display:none;align-items:center;border-radius:999px;background:#16a34a;color:white;font-size:11px;font-weight:700;padding:2px 7px;">推荐</span>
         </div>
-        <div style="font-size:12px;line-height:1.45;color:#334155;">worker 기반 계산입니다. 호환성은 좋고, CPU 안에서 빠른 판단 또는 품질 판단을 선택합니다.</div>
+        <div style="font-size:12px;line-height:1.45;color:#334155;">基于 worker 的计算。兼容性好，可在 CPU 内选择快速判断或品质判断。</div>
       </label>
     </div>
     <div id="gpu-settings" style="margin-bottom:14px;">
-      <div style="font-weight:700;color:#0f172a;margin-bottom:6px;">GPU 사용량</div>
+      <div style="font-weight:700;color:#0f172a;margin-bottom:6px;">GPU 使用量</div>
       <div id="gpu-usage-options" style="display:grid;grid-template-columns:1fr;gap:8px;">
         ${gpuUsageCards}
       </div>
     </div>
     <div id="cpu-settings" style="margin-bottom:16px;">
-      <div style="font-weight:700;color:#0f172a;margin-bottom:6px;">CPU 판단 로직</div>
+      <div style="font-weight:700;color:#0f172a;margin-bottom:6px;">CPU 判断逻辑</div>
       <div id="cpu-policy-options" style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:12px;">
         ${cpuPolicyCards}
       </div>
-      <div style="font-weight:700;color:#0f172a;margin-bottom:6px;">CPU worker 수</div>
+      <div style="font-weight:700;color:#0f172a;margin-bottom:6px;">CPU worker 数</div>
       <div id="cpu-worker-options" style="display:grid;grid-template-columns:1fr;gap:8px;">
         ${cpuWorkerCards}
       </div>
-      <div style="font-size:12px;line-height:1.45;color:#64748b;margin-top:8px;">추론시간 추천 표시는 CPU Fast 기준이며, CPU는 축소 측정 후 예상 시간으로 환산합니다.</div>
+      <div style="font-size:12px;line-height:1.45;color:#64748b;margin-top:8px;">推理时间的推荐显示以 CPU Fast 为基准，CPU 会按缩减测量换算为预估时间。</div>
     </div>
     <div data-overall-perf-progress style="display:none;margin:0 0 14px 0;padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;">
-      <div data-overall-perf-text style="font-size:12px;line-height:1.4;color:#475569;margin-bottom:7px;">추천 항목 계산중입니다. [0%]</div>
+      <div data-overall-perf-text style="font-size:12px;line-height:1.4;color:#475569;margin-bottom:7px;">正在计算推荐选项。 [0%]</div>
       <div style="height:4px;background:#e2e8f0;border-radius:999px;overflow:hidden;">
         <div data-overall-perf-fill style="height:100%;width:0%;background:#16a34a;border-radius:999px;transition:width 120ms linear;"></div>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;">
-      <button id="compute-measure-perf" type="button" style="border:1px solid #2563eb;border-radius:6px;padding:9px 14px;background:#ffffff;color:#2563eb;font-weight:700;cursor:pointer;">추론 시간 측정</button>
-      <button id="compute-start" style="border:0;border-radius:6px;padding:9px 14px;background:#2563eb;color:white;font-weight:700;cursor:pointer;">시작</button>
+      <button id="compute-measure-perf" type="button" style="border:1px solid #2563eb;border-radius:6px;padding:9px 14px;background:#ffffff;color:#2563eb;font-weight:700;cursor:pointer;">测量推理时间</button>
+      <button id="compute-start" style="border:0;border-radius:6px;padding:9px 14px;background:#2563eb;color:white;font-weight:700;cursor:pointer;">开始</button>
     </div>
   `;
 
@@ -5074,7 +5074,7 @@ function showComputeModeModal(onDone) {
     let workers = getSelectedCpuWorkers();
     computeSettings.cpuWorkers = workers;
     computeSettings.cpuMaxPct = getCpuMaxPctForWorkers(workers);
-    computeSettings.cpuUsage = selectedCpu?.dataset?.usage || '보통';
+    computeSettings.cpuUsage = selectedCpu?.dataset?.usage || '中';
     updateComputeOptionCards('cpu');
   }
 
@@ -5103,7 +5103,7 @@ function showComputeModeModal(onDone) {
     measureButton.disabled = true;
     measureButton.style.opacity = '0.7';
     measureButton.style.cursor = 'default';
-    measureButton.textContent = '측정 중...';
+    measureButton.textContent = '测量中...';
     computePerfBenchmarkPromise = measureComputePerfOptions(gpuAvailable, cpuWorkerCandidates)
       .catch(error => console.warn('Compute perf benchmark failed.', error))
       .finally(() => {
@@ -5112,7 +5112,7 @@ function showComputeModeModal(onDone) {
         measureButton.disabled = false;
         measureButton.style.opacity = '1';
         measureButton.style.cursor = 'pointer';
-        measureButton.textContent = '다시 측정';
+        measureButton.textContent = '重新测量';
         scheduleComputeModeModalFit();
       });
   });
@@ -5172,10 +5172,10 @@ function initUsageOverlay() {
   var steps = [
     {
       id: 'position',
-      title: '위치와 스테이지 이동',
+      title: '位置与关卡移动',
       lines: [
-        { html: '<span style="font-weight:700;color:#1d4ed8;">칸 표시</span>를 클릭하거나 <span style="font-weight:700;color:#1d4ed8;">Ctrl + Q</span>로 현재 칸을 직접 이동합니다.' },
-        { html: '<span style="font-weight:700;color:#1d4ed8;">수동 모드</span>에서는 캐릭터 드래그, 좌/우 화살표, 방향키로 위치를 빠르게 바꿀 수 있습니다.' }
+        { html: '点击<span style="font-weight:700;color:#1d4ed8;">格数显示</span>或按 <span style="font-weight:700;color:#1d4ed8;">Ctrl + Q</span> 可直接移动到当前格。' },
+        { html: '在<span style="font-weight:700;color:#1d4ed8;">手动模式</span>下，可通过拖拽角色、左右箭头和方向键快速调整位置。' }
       ],
       region: REGION_SCORE,
       extraRegions: [
@@ -5190,11 +5190,11 @@ function initUsageOverlay() {
     },
     {
       id: 'exScore',
-      title: '예상 점수와 계산 설정',
+      title: '预期得分与计算设置',
       lines: [
-        { html: '<span style="font-weight:700;color:#1d4ed8;">예상 점수</span> 헤더를 클릭하면 계산 엔진과 사용량을 바꿀 수 있습니다.' },
-        { html: '점수 목록에 <span style="font-weight:700;color:#1d4ed8;">마우스를 올리면</span> 6개 case 전체 비교 표를 확인합니다.' },
-        { html: '<span style="font-weight:700;color:#1d4ed8;">Ctrl + R</span> 또는 점수 목록 클릭으로 예상 점수를 다시 계산합니다.' }
+        { html: '点击<span style="font-weight:700;color:#1d4ed8;">预期得分</span>标题可切换计算引擎与使用量。' },
+        { html: '<span style="font-weight:700;color:#1d4ed8;">鼠标悬停</span>在得分列表上时，可查看 6 个 case 的整体对比表。' },
+        { html: '按 <span style="font-weight:700;color:#1d4ed8;">Ctrl + R</span> 或点击得分列表可重新计算预期得分。' }
       ],
       preview: { exScore: true },
       bubblePlacement: 'top',
@@ -5205,25 +5205,25 @@ function initUsageOverlay() {
         y2: REGION_BTN_EXSCORE.y2
       },
       detailHtml:
-        '<div style="margin-bottom:5px;"><strong style="color:#0f172a;">통계값 의미</strong></div>' +
+        '<div style="margin-bottom:5px;"><strong style="color:#0f172a;">统计值含义</strong></div>' +
         '<ul style="margin:0; padding-left:16px; list-style:disc;">' +
-        '<li><span style="font-weight:700;color:#1d4ed8;">샘플수</span>: 몇 번 시뮬레이션했는지입니다.</li>' +
-        '<li><span style="font-weight:700;color:#1d4ed8;">범위</span>: 나온 결과 중 최저~최고 점수입니다.</li>' +
-        '<li><span style="font-weight:700;color:#1d4ed8;">GPU 평균 / CPU 중앙값</span>: GPU는 평균 점수, CPU는 결과를 줄 세웠을 때 가운데 점수입니다.</li>' +
-        '<li><span style="font-weight:700;color:#1d4ed8;">신뢰구간</span> <span style="color:#64748b;">(95% CI)</span>: 평균 예상 점수가 어느 정도 흔들릴 수 있는지 보는 참고 범위입니다.</li>' +
+        '<li><span style="font-weight:700;color:#1d4ed8;">样本数</span>：模拟了多少次。</li>' +
+        '<li><span style="font-weight:700;color:#1d4ed8;">范围</span>：所得结果中的最低~最高得分。</li>' +
+        '<li><span style="font-weight:700;color:#1d4ed8;">GPU 平均 / CPU 中位数</span>：GPU 取平均得分，CPU 取结果排序后位于中间的得分。</li>' +
+        '<li><span style="font-weight:700;color:#1d4ed8;">置信区间</span> <span style="color:#64748b;">(95% CI)</span>：用来看平均预期得分可能有多大波动的参考范围。</li>' +
         '</ul>' +
         '<div style="margin-top:6px;color:#334155;">' +
-        '신뢰구간끼리 많이 겹치면 <span style="font-weight:700;color:#16a34a;">어느 선택이 더 좋은지 아직 애매</span>할 수 있습니다.' +
+        '置信区间重叠较多时，可能<span style="font-weight:700;color:#16a34a;">还难以判断哪个选择更好</span>。' +
         '</div>'
     },
     {
       id: 'prediction',
-      title: '도착 예측 표시',
+      title: '落点预测显示',
       lines: [
-        { html: '<span style="font-weight:700;color:#1d4ed8;">+2~+12 도착 확률</span>은 보드 위에 상시 표시됩니다.' },
-        { html: '주사위 버튼이나 카드에 <span style="font-weight:700;color:#1d4ed8;">마우스를 올리면</span> 카드칸, 점프칸, 멈춤칸 확률과 다음 스테이지 미니맵을 볼 수 있습니다.' },
-        { html: '<span style="font-weight:700;color:#1d4ed8;">기대값</span>은 즉시 도착 기준 <span style="font-weight:700;color:#1d4ed8;">score/diceUse 변화량</span>이며, 카드 획득의 장기 가치는 제외됩니다.' },
-        { html: '확정 이동 카드는 노란 펄스, 주사위형 이동은 분홍 펄스로 표시됩니다.' }
+        { html: '<span style="font-weight:700;color:#1d4ed8;">+2~+12 落点概率</span>常驻显示在棋盘上。' },
+        { html: '<span style="font-weight:700;color:#1d4ed8;">鼠标悬停</span>在骰子按钮或卡牌上时，可查看卡牌格、跳跃格、停顿格概率以及下一关卡小地图。' },
+        { html: '<span style="font-weight:700;color:#1d4ed8;">期望值</span>是按立即落点计算的 <span style="font-weight:700;color:#1d4ed8;">score/diceUse 变化量</span>，不含获得卡牌的长期价值。' },
+        { html: '确定移动的卡牌以黄色脉冲显示，骰子型移动以粉色脉冲显示。' }
       ],
       preview: { prediction: 'dice' },
       bubblePlacement: 'top',
@@ -5231,11 +5231,11 @@ function initUsageOverlay() {
     },
     {
       id: 'stepButton',
-      title: '주사위와 직접 이동',
+      title: '骰子与直接移动',
       lines: [
-        { html: '<span style="font-weight:700;color:#1d4ed8;">수동 모드</span>: 주사위 버튼은 더블 여부를 토글합니다.' },
-        { html: '왼쪽의 <span style="font-weight:700;color:#1d4ed8;">+2~+12 버튼</span>으로 원하는 칸수만큼 바로 이동할 수 있습니다.' },
-        { html: '<span style="font-weight:700;color:#1d4ed8;">자동 모드</span>: 주사위 버튼으로 실제 진행하며, +2~+12 버튼은 비활성화됩니다.' }
+        { html: '<span style="font-weight:700;color:#1d4ed8;">手动模式</span>：骰子按钮用于切换是否双骰。' },
+        { html: '用左侧的 <span style="font-weight:700;color:#1d4ed8;">+2~+12 按钮</span>可按想要的格数直接移动。' },
+        { html: '<span style="font-weight:700;color:#1d4ed8;">自动模式</span>：用骰子按钮实际推进，+2~+12 按钮会被禁用。' }
       ],
       region: {
         x1: REGION_DICE_MOVE.x1,
@@ -5246,39 +5246,39 @@ function initUsageOverlay() {
     },
     {
       id: 'cardsUse',
-      title: '행운 카드',
+      title: '幸运卡牌',
       lines: [
-        { html: '<span style="font-weight:700;color:#1d4ed8;">카드 슬롯 클릭</span> 또는 <span style="font-weight:700;color:#1d4ed8;">Ctrl + 1~5</span>로 카드를 사용합니다.' },
-        { html: '카드 슬롯 <span style="font-weight:700;color:#1d4ed8;">오른쪽 클릭</span>은 이동하지 않고 카드를 버립니다.' },
-        { html: '카드에 <span style="font-weight:700;color:#1d4ed8;">마우스를 올리면</span> 이동 후 도착 예측 오버레이가 함께 표시됩니다.' },
-        { html: '<span style="font-weight:700;color:#1d4ed8;">Ctrl + G</span>로 이름 일부를 포함하는 키워드로 카드를 바로 획득할 수 있습니다.' }
+        { html: '<span style="font-weight:700;color:#1d4ed8;">点击卡牌槽</span>或按 <span style="font-weight:700;color:#1d4ed8;">Ctrl + 1~5</span> 使用卡牌。' },
+        { html: '<span style="font-weight:700;color:#1d4ed8;">右键点击</span>卡牌槽可丢弃卡牌而不移动。' },
+        { html: '<span style="font-weight:700;color:#1d4ed8;">鼠标悬停</span>在卡牌上时，会同时显示移动后的落点预测浮层。' },
+        { html: '按 <span style="font-weight:700;color:#1d4ed8;">Ctrl + G</span> 可用包含部分名称的关键词直接获得卡牌。' }
       ],
       preview: { prediction: 'card' },
       region: REGION_CARDS,
       detailHtml:
-        '카드 검색 키워드:<br>' +
-        '<span style="font-weight:600;color:#1d4ed8;">+N</span> 또는 <span style="font-weight:600;color:#1d4ed8;">N</span>: 앞으로 N칸<br>' +
-        '<span style="font-weight:600;color:#1d4ed8;">-N</span>: 뒤로 N칸<br>' +
-        '<span style="font-weight:600;color:#1d4ed8;">*N</span>: 주사위 N배<br>' +
-        '<span style="font-weight:600;color:#1d4ed8;">&gt;</span>: 다음 스테이지'
+        '卡牌搜索关键词：<br>' +
+        '<span style="font-weight:600;color:#1d4ed8;">+N</span> 或 <span style="font-weight:600;color:#1d4ed8;">N</span>：前进 N 格<br>' +
+        '<span style="font-weight:600;color:#1d4ed8;">-N</span>：后退 N 格<br>' +
+        '<span style="font-weight:600;color:#1d4ed8;">*N</span>：骰子 N 倍<br>' +
+        '<span style="font-weight:600;color:#1d4ed8;">&gt;</span>：下一关卡'
     },
     {
       id: 'cardInfo',
-      title: '카드 정보',
+      title: '卡牌信息',
       lines: [
-        { html: '<span style="font-weight:700;color:#1d4ed8;">?</span> 버튼으로 카드 획득 정보를 열고 닫습니다.' },
-        { html: '목록에서는 클릭으로 획득 여부를 바꾸고, <span style="font-weight:700;color:#1d4ed8;">오른쪽 클릭</span>으로 바로 획득 처리합니다.' },
-        { html: '<span style="font-weight:700;color:#1d4ed8;">자동 모드</span>에서는 카드 정보 수정과 강제 획득이 제한됩니다.' }
+        { html: '用 <span style="font-weight:700;color:#1d4ed8;">?</span> 按钮打开和关闭卡牌获取信息。' },
+        { html: '在列表中点击可切换是否已获得，<span style="font-weight:700;color:#1d4ed8;">右键点击</span>可直接标记为已获得。' },
+        { html: '在<span style="font-weight:700;color:#1d4ed8;">自动模式</span>下，修改卡牌信息和强制获取会受到限制。' }
       ],
       region: REGION_BTN_CARDINFO
     },
     {
       id: 'mode',
-      title: '수동 / 자동 모드',
+      title: '手动 / 自动模式',
       lines: [
-        { html: '<span style="font-weight:700;color:#1d4ed8;">수동 모드</span>는 테스트용으로 위치, 카드, 주사위 사용 횟수를 직접 조정합니다.' },
-        { html: '<span style="font-weight:700;color:#1d4ed8;">자동 모드</span>는 실제 진행처럼 주사위와 카드를 자동 판단해 진행합니다.' },
-        { html: '<span style="font-weight:700;color:#1d4ed8;">주사위 사용 횟수</span>는 하단 영역 클릭 또는 <span style="font-weight:700;color:#1d4ed8;">Ctrl + E</span>로 수정합니다.' }
+        { html: '<span style="font-weight:700;color:#1d4ed8;">手动模式</span>用于测试，可直接调整位置、卡牌和骰子使用次数。' },
+        { html: '<span style="font-weight:700;color:#1d4ed8;">自动模式</span>像实际游玩一样自动判断骰子和卡牌并推进。' },
+        { html: '点击底部区域或按 <span style="font-weight:700;color:#1d4ed8;">Ctrl + E</span> 可修改<span style="font-weight:700;color:#1d4ed8;">骰子使用次数</span>。' }
       ],
       region: REGION_BTN_CHANGEMODE
     }
@@ -5436,7 +5436,7 @@ function createUsageOverlayWithSteps(steps) {
   stepIndicator.style.color = '#475569';
 
   var skipBtn = document.createElement('button');
-  skipBtn.textContent = '건너뛰기';
+  skipBtn.textContent = '跳过';
   skipBtn.style.border = '1px solid #f97316';
   skipBtn.style.borderRadius = '999px';
   skipBtn.style.background = 'white';
@@ -5446,7 +5446,7 @@ function createUsageOverlayWithSteps(steps) {
   skipBtn.style.cursor = 'pointer';
 
   var detailBtn = document.createElement('button');
-  detailBtn.textContent = '자세히';
+  detailBtn.textContent = '详情';
   detailBtn.style.border = 'none';
   detailBtn.style.borderRadius = '999px';
   detailBtn.style.background = '#e0f2fe';
@@ -5463,12 +5463,12 @@ function createUsageOverlayWithSteps(steps) {
   var btnGroup = document.createElement('div');
 
   var prevBtn = document.createElement('button');
-  prevBtn.textContent = '이전';
+  prevBtn.textContent = '上一步';
   prevBtn.style.marginRight = '8px';
   styleUsagePrimaryBtn(prevBtn, true);
 
   var nextBtn = document.createElement('button');
-  nextBtn.textContent = '다음';
+  nextBtn.textContent = '下一步';
   styleUsagePrimaryBtn(nextBtn, false);
 
   btnGroup.appendChild(prevBtn);
@@ -5505,7 +5505,7 @@ function createUsageOverlayWithSteps(steps) {
   skipConfirm.style.maxWidth = '320px';
 
   var skipText = document.createElement('div');
-  skipText.innerHTML = '도움말을 종료할까요?<br><span style="color:#6b7280;">나중에 다시 보려면 <strong>도움말</strong> 버튼을 누르세요.</span>';
+  skipText.innerHTML = '要退出帮助吗？<br><span style="color:#6b7280;">稍后想再看，请按<strong>帮助</strong>按钮。</span>';
   skipText.style.marginBottom = '8px';
 
   var skipBtnRow = document.createElement('div');
@@ -5514,7 +5514,7 @@ function createUsageOverlayWithSteps(steps) {
   skipBtnRow.style.gap = '6px';
 
   var skipCancel = document.createElement('button');
-  skipCancel.textContent = '계속 보기';
+  skipCancel.textContent = '继续观看';
   skipCancel.style.border = 'none';
   skipCancel.style.borderRadius = '999px';
   skipCancel.style.background = '#e5e7eb';
@@ -5524,7 +5524,7 @@ function createUsageOverlayWithSteps(steps) {
   skipCancel.style.cursor = 'pointer';
 
   var skipOk = document.createElement('button');
-  skipOk.textContent = '종료';
+  skipOk.textContent = '退出';
   skipOk.style.border = 'none';
   skipOk.style.borderRadius = '999px';
   skipOk.style.background = '#ef4444';
@@ -5891,17 +5891,17 @@ function createUsageOverlayWithSteps(steps) {
     }
 
     if (step.waitForCardInfoClick) {
-      nextBtn.textContent = '다음';
+      nextBtn.textContent = '下一步';
       nextBtn.disabled = true;
       nextBtn.style.opacity = '0.4';
       nextBtn.style.cursor = 'default';
     } else if (currentStepIndex === steps.length - 1) {
-      nextBtn.textContent = '완료';
+      nextBtn.textContent = '完成';
       nextBtn.disabled = false;
       nextBtn.style.opacity = '1';
       nextBtn.style.cursor = 'pointer';
     } else {
-      nextBtn.textContent = '다음';
+      nextBtn.textContent = '下一步';
       nextBtn.disabled = false;
       nextBtn.style.opacity = '1';
       nextBtn.style.cursor = 'pointer';
@@ -5909,7 +5909,7 @@ function createUsageOverlayWithSteps(steps) {
 
     if (step.detailHtml) {
       detailBtn.style.display = 'inline-block';
-      detailBtn.textContent = detailOpen ? '간단히' : '자세히';
+      detailBtn.textContent = detailOpen ? '收起' : '详情';
       detailPanel.style.display = detailOpen ? 'block' : 'none';
       if (detailOpen) detailPanel.innerHTML = step.detailHtml;
     } else {

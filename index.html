@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko">
+<html lang="zh">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -13,14 +13,14 @@
   <body>
     <div id="frame" inert>
       <main id="game" class="game-shell" aria-label="Adventure">
-        <aside class="status-panel" aria-label="게임 상태와 주사위">
+        <aside class="status-panel" aria-label="游戏状态与骰子">
           <section class="profile-panel">
             <button
               type="button"
               id="notice-button"
               class="notice-button"
-              aria-label="공지사항"
-              title="공지사항"
+              aria-label="公告"
+              title="公告"
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M11 5L6 9H2v6h4l5 4V5z"/>
@@ -32,8 +32,8 @@
               type="button"
               id="feedback-button"
               class="notice-button feedback-button"
-              aria-label="문의·제보 (새 탭)"
-              title="문의·제보 (새 탭)"
+              aria-label="咨询·反馈 (新标签页)"
+              title="咨询·反馈 (新标签页)"
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -44,42 +44,42 @@
             <button
               class="position-button"
               id="position-button"
-              aria-label="현재 칸 변경"
+              aria-label="更改当前格"
             >
-              <output id="position">1</output> <span>칸</span>
+              <output id="position">1</output> <span>格</span>
             </button>
-            <div class="portrait" role="img" aria-label="캐릭터"></div>
+            <div class="portrait" role="img" aria-label="角色"></div>
             <div id="stage-name" class="stage-name"></div>
             <output id="stage-position" class="stage-position">1</output>
           </section>
           <section class="estimate-panel">
             <div class="estimate-heading">
             <button id="settings-button" class="panel-heading">
-              모델 선택
+              模型选择
             </button>
-            <button id="compare-button" aria-label="행동 전체 비교" title="행동 전체 비교" disabled>비교</button>
+            <button id="compare-button" aria-label="行动整体对比" title="行动整体对比" disabled>对比</button>
             </div>
-            <div class="score-forecast" id="score-forecast"><span id="forecast-label">예상 최종 점수</span><output id="forecast-value">—</output><small id="forecast-delta"></small></div>
+            <div class="score-forecast" id="score-forecast"><span id="forecast-label">预计最终得分</span><output id="forecast-value">—</output><small id="forecast-delta"></small></div>
             <div
               id="estimates"
               class="estimate-list"
-              aria-label="예상 점수 목록"
+              aria-label="预计得分列表"
             ></div>
           </section>
           <section class="dice-panel">
-            <div class="dice-heading">주사위 이동</div>
+            <div class="dice-heading">骰子移动</div>
             <div id="dice-buttons" class="dice-buttons"></div>
           </section>
           <button
             id="roll-button"
             class="roll-button"
-            aria-label="더블 여부 변경"
+            aria-label="切换双倍状态"
           ></button>
           <button id="dice-used-button" class="dice-used">
-            주사위 사용 횟수 <output id="dice-used">0</output> / 100
+            骰子使用次数 <output id="dice-used">0</output> / 100
           </button>
         </aside>
-        <section class="board-viewport" aria-label="보드">
+        <section class="board-viewport" aria-label="棋盘">
           <canvas
             id="board-canvas"
             width="1024"
@@ -89,34 +89,34 @@
           <button
             id="character-target"
             class="character-target"
-            aria-label="캐릭터 위치 편집"
+            aria-label="编辑角色位置"
           ></button>
           <p id="board-description" class="sr-only" aria-live="polite"></p>
-          <nav class="toolbar" aria-label="게임 도구">
+          <nav class="toolbar" aria-label="游戏工具">
             <div class="record">
-              최고 기록: <output id="high-score">1 칸</output>
+              最高纪录: <output id="high-score">1 格</output>
             </div>
-            <div id="hand" class="hand" aria-label="행운 카드"></div>
+            <div id="hand" class="hand" aria-label="幸运卡牌"></div>
             <button
               id="card-info-button"
               class="card-info-button"
-              aria-label="카드 정보"
+              aria-label="卡牌信息"
               aria-expanded="false"
             >
               ?
             </button>
-            <button id="reset-button" class="blue-button">재시작</button>
-            <button id="mode-button" class="blue-button">모드변경</button>
-            <button id="help-button" class="blue-button">도움말</button>
+            <button id="reset-button" class="blue-button">重新开始</button>
+            <button id="mode-button" class="blue-button">切换模式</button>
+            <button id="help-button" class="blue-button">帮助</button>
             <div class="stage-navigation">
-              <button id="prev-stage" aria-label="이전 스테이지"></button
-              ><button id="next-stage" aria-label="다음 스테이지"></button>
+              <button id="prev-stage" aria-label="上一关卡"></button
+              ><button id="next-stage" aria-label="下一关卡"></button>
             </div>
           </nav>
           <section
             id="card-info"
             class="card-info"
-            aria-label="카드 획득 정보"
+            aria-label="卡牌获取信息"
             hidden
           >
             <div id="card-info-list" class="card-info-list"></div>
@@ -127,26 +127,26 @@
     <section
       id="score-overview"
       class="popover overview"
-      aria-label="예상 점수 전체 비교"
+      aria-label="预计得分整体对比"
       hidden
     >
-      <header><strong>예상 점수 전체 비교</strong><span>6개 case</span></header>
+      <header><strong>预计得分整体对比</strong><span>6 个 case</span></header>
       <p class="legend">
-        <b class="recommended">추천</b>: 현재 평균이 가장 높은 선택 ·
-        <b class="near">근접</b>: 차이가 작아 우열이 애매한 선택 ·
-        <b class="candidate">후보</b>: 아직 제외되지 않은 선택
+        <b class="recommended">推荐</b>: 当前平均分最高的选择 ·
+        <b class="near">接近</b>: 差距较小、难分优劣的选择 ·
+        <b class="candidate">候选</b>: 尚未排除的选择
       </p>
       <div class="table-scroll">
         <table>
           <thead>
             <tr>
               <th>case</th>
-              <th id="center-label">평균</th>
-              <th>범위</th>
+              <th id="center-label">平均</th>
+              <th>范围</th>
               <th>95% CI</th>
-              <th>샘플</th>
-              <th>추천차</th>
-              <th>상태</th>
+              <th>样本</th>
+              <th>推荐差</th>
+              <th>状态</th>
             </tr>
           </thead>
           <tbody id="overview-body"></tbody>
@@ -157,25 +157,25 @@
     <section
       id="prediction"
       class="popover prediction"
-      aria-label="도착 예측"
+      aria-label="到达预测"
       hidden
     >
       <div id="prediction-content"></div>
     </section>
     <div id="loading" class="loading">
-      <section class="loading-card" aria-label="게임 준비">
+      <section class="loading-card" aria-label="游戏准备">
         <p class="loading-brand">Adventure</p>
         <header>
-          <strong>모험을 준비하고 있어요</strong
+          <strong>正在准备冒险</strong
           ><output id="loading-percent">0%</output>
         </header>
-        <p id="loading-status">잠시 후 게임이 시작됩니다.</p>
+        <p id="loading-status">游戏即将开始，请稍候。</p>
         <progress id="loading-progress" max="100" value="0"></progress>
-        <p id="loading-detail">화면 준비 중</p>
-        <div class="loading-links"><button id="boot-retry" hidden>다시 시도</button><button id="boot-diagnostics" title="현재 오류와 브라우저 정보를 파일로 저장합니다. 자동 전송되지 않습니다." hidden>진단 정보 저장</button><a id="legacy-link" class="legacy-access" href="./old/v1/" aria-label="기존 화면으로 이동"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="M3 7h14"/></svg><span>기존 화면</span><span class="legacy-arrow" aria-hidden="true">→</span></a></div>
+        <p id="loading-detail">正在准备画面</p>
+        <div class="loading-links"><button id="boot-retry" hidden>重试</button><button id="boot-diagnostics" title="将当前错误和浏览器信息保存为文件。不会自动发送。" hidden>保存诊断信息</button><a id="legacy-link" class="legacy-access" href="./old/v1/" aria-label="前往旧版界面"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="M3 7h14"/></svg><span>旧版界面</span><span class="legacy-arrow" aria-hidden="true">→</span></a></div>
       </section>
     </div>
-    <div id="notification-stack" class="notification-stack" aria-label="알림" hidden></div>
+    <div id="notification-stack" class="notification-stack" aria-label="通知" hidden></div>
     <script src="./src/platform/diagnostics.js"></script>
     <script src="./src/platform/feedback.js"></script>
     <script src="./src/bootstrap/loader.js"></script>

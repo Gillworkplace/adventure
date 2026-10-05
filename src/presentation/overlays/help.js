@@ -5,53 +5,53 @@ function helpSteps() {
   const vela = document.querySelector("#settings-button").dataset.model === "vela";
   const keys = alternate ? ["1", "2", "3"] : ["Ctrl+Q", "Ctrl+E", "Ctrl+G"];
   return [
-    ["플레이 모드", "#mode-button",
-      "<strong>어시스트</strong>는 연결한 게임 화면에서 위치·주사위·카드를 읽어 추천에 반영합니다. 실제 게임은 직접 조작하세요.",
-      "<strong>수동</strong>은 실제 게임의 위치·주사위·카드를 직접 입력하는 모드입니다.",
-      "<strong>자동</strong>은 실제 게임 규칙으로 직접 플레이합니다. 실제 게임을 대신 조작하지 않습니다.",
-      "중간부터 연결하면 실제 게임의 <strong>카드 획득 이력</strong>을 열고 위부터 아래까지 천천히 스크롤하세요. 새 게임은 바로 시작하며, 덱 초기화나 놓친 행동이 있으면 다시 확인을 요청합니다.",
-      "읽기 어려운 값은 <strong>상단 안내의 직접 입력</strong>으로 보완할 수 있습니다. 확인 중에는 추천을 잠시 멈춥니다.",
-      "추천 모델을 선택한 뒤 상단 <strong>음성</strong>에서 음성 안내를 켤 수 있습니다. 한국어·영어·일본어·중국어와 여성·남성 목소리 중에서 골라 사용할 수 있습니다. 음성을 받기 전에 용량을 확인할 수 있고, 브라우저 저장과 삭제도 가능합니다.",
-      "<strong>모드변경</strong>으로 전환해도 마지막으로 확인한 상태는 유지됩니다. 어시스트의 화면 연결을 끝내려면 연결을 해제하거나 다른 모드로 전환하세요."],
-    ["위치와 스테이지 이동", "#position-button",
-      `현재 <strong>칸 번호</strong>를 누르면 위치를 입력할 수 있습니다. 수동 모드 단축키는 <kbd>${keys[0]}</kbd>입니다.`,
-      `수동 모드에서는 <strong>캐릭터를 끌어</strong> 위치를 바꿀 수 있습니다. <strong>스테이지 화살표</strong>${alternate ? "" : "·방향키 ←/→"}는 수동·자동 모드에서 위치를 바꿉니다.`],
-    ["주사위와 더블", "#roll-button",
-      "<strong>수동</strong>에서는 주사위 버튼으로 더블 여부를 바꾸고, <strong>+2~+12</strong>로 나온 눈의 합을 입력합니다.",
-      "<strong>자동</strong>에서는 주사위 버튼으로 두 개를 굴립니다. 더블이면 다음 주사위는 횟수를 소모하지 않습니다.",
-      `<strong>주사위 사용 횟수</strong>를 눌러 수정할 수 있습니다. 수동 모드 단축키는 <kbd>${keys[1]}</kbd>입니다.`],
-    ...(vela ? [["행동별 평가와 추천", "#estimates",
-      "<strong>평가값이 높을수록 유리한 선택</strong>입니다. 추천은 가장 높은 값을 가진 선택이며 최종 점수 예측은 아닙니다.",
-      "목록에 마우스를 올리면 행동별 값을 비교합니다. 클릭 또는 <kbd>Ctrl+R</kbd>로 다시 계산합니다.",
-      "작은 화면에서는 <strong>비교</strong> 버튼을 누르세요. 터치에서는 목록을 길게 눌러도 열립니다.",
-      "<strong>모델 선택</strong>을 누르면 모델을 바꿀 수 있습니다."]] : [["행동별 점수와 추천", "#estimates",
-      "각 선택 이후를 시뮬레이션한 <strong>최종 점수의 평균</strong>입니다. ‘추천’은 평균이 가장 높은 선택, ‘근접’은 추천과 차이가 뚜렷하지 않은 선택입니다.",
-      "행동별 점수는 선택을 비교하는 값으로, G3 추천을 매번 다시 계산하며 따를 때의 예상 최종 점수와는 다릅니다.",
-      "점수 목록에 마우스를 올리면 전체 비교 표가 열립니다. 목록을 누르거나 <kbd>Ctrl+R</kbd>로 다시 계산합니다.",
-      "작은 화면에서는 <strong>비교</strong> 버튼을 누르세요. 터치에서는 목록을 길게 눌러도 열립니다.",
-      "<strong>모델 선택</strong>을 누르면 모델·계산 방식을 바꿀 수 있습니다.",
-      { label: "통계 읽는 법", html: '<dl class="help-reference"><dt>표본 수</dt><dd>해당 선택을 시뮬레이션한 횟수</dd><dt>평균 / 중앙값</dt><dd>평균은 모든 결과의 평균, 중앙값은 결과를 정렬했을 때 가운데 값입니다. 비교 표의 대표값은 GPU 평균·CPU 중앙값이며 추천은 둘 다 평균 기준입니다.</dd><dt>범위</dt><dd>시뮬레이션에서 나온 최저~최고 점수</dd><dt>95% 신뢰구간</dt><dd>평균 추정의 불확실성을 나타냅니다. 한 판의 점수가 이 안에 나온다는 뜻은 아닙니다.</dd></dl>' }]]),
-    ["예상 최종 점수", "#score-forecast",
-      `현재 상태에서 <strong>${vela ? "VELA" : "G3-R100K"} 추천을 계속 따를 때</strong>의 최종 점수 예측입니다. 실제 결과를 보장하지 않으며 행동별 평가와 별도로 계산합니다.`,
-      "괄호는 직전 상태 대비 변화입니다. 위치·카드 등을 직접 수정해도 변하므로 한 번의 행동 효과만 뜻하지는 않습니다.",
-      "게임이 끝나면 실제 최종 점수를 표시합니다. 예측할 수 없으면 <strong>—</strong>로 표시합니다."],
-    ["카드 사용과 추가", "#hand",
-      "<strong>카드를 누르면 사용</strong>합니다. <kbd>Ctrl+1~5</kbd>로 해당 슬롯을 선택할 수도 있습니다.",
-      "<strong>우클릭하면 이동 없이 바로 버립니다.</strong> 터치에서는 길게 누른 뒤 ‘버리기’를 선택하세요.",
-      "수동 모드에서 <strong>배수 카드는 실제 주사위 눈의 합(2~12)</strong>을 선택해 사용합니다. 숫자 버튼을 누르거나 입력 후 <kbd>Enter</kbd>로 적용하며, <kbd>Esc</kbd> 또는 취소로 돌아갑니다.",
-      `수동 모드에서 <strong>빈 슬롯</strong>이나 <kbd>${keys[2]}</kbd>로 카드를 검색해 추가합니다. 자동 모드에서는 카드 획득 칸에서 뽑습니다.`,
-      { label: "카드 검색 예시", html: '<dl class="help-reference"><dt>이름 일부</dt><dd>카드 이름에 포함된 글자로 검색</dd><dt>+10 또는 10</dt><dd>앞으로 10칸</dd><dt>-5</dt><dd>뒤로 5칸</dd><dt>*2</dt><dd>주사위 2배</dd><dt>&gt;</dt><dd>다음 스테이지</dd></dl>' }],
-    ["도착 미리보기", "#roll-button",
-      "보드에는 <strong>도착 위치별 확률</strong>이 표시됩니다. 여러 주사위 결과가 같은 위치에 도착하면 확률을 합칩니다.",
-      "주사위나 카드에 마우스를 올리면 카드칸·점프칸·멈춤칸 확률을 볼 수 있습니다. 현재 스테이지의 도착 위치는 보드 위에 표시됩니다.",
-      "터치에서는 주사위를 길게 누르거나, 카드를 길게 누른 뒤 <strong>도착 예측</strong>을 선택하세요."],
-    ["전체 카드와 획득 표시", "#card-info-button",
-      "<strong>?</strong> 버튼으로 전체 카드 목록을 열고 닫습니다.",
-      "수동 모드에서는 목록의 카드를 눌러 획득 표시를 바꾸고, 우클릭하거나 길게 누르면 손패에 추가할 수 있습니다.",
-      "획득 표시만 바꿔도 손패는 바뀌지 않습니다. 손패에 추가하면 획득 표시도 함께 바뀝니다. 자동 모드에서는 획득 표시 해제만 가능합니다."],
-    ["다시 시작", "#reset-button",
-      "<strong>재시작</strong>을 누르고 확인하면 위치·주사위·카드가 초기화됩니다. 이 페이지를 열어 둔 동안의 최고 기록은 유지됩니다.",
-      "조작이 헷갈리면 <strong>도움말</strong>에서 다시 확인하세요."],
+    ["游戏模式", "#mode-button",
+      "<strong>辅助</strong>模式会从连接的游戏画面读取位置·骰子·卡牌，并反映到推荐中。实际游戏请自行操作。",
+      "<strong>手动</strong>模式需要亲自输入实际游戏的位置·骰子·卡牌。",
+      "<strong>自动</strong>模式按实际游戏规则直接游玩，不会代替你操作实际游戏。",
+      "从中间开始连接时，请打开实际游戏的<strong>卡牌获取记录</strong>，并从上到下慢慢滚动。新游戏会直接开始；若检测到牌堆重置或有遗漏的操作，会请求再次确认。",
+      "难以读取的数值可通过<strong>顶部提示中的手动输入</strong>补正。确认期间推荐会暂时暂停。",
+      "选择推荐模型后，可在顶部<strong>语音</strong>中开启语音引导。可在韩语·英语·日语·中文以及女声·男声中选择使用。下载语音前可确认大小，也支持在浏览器中保存和删除。",
+      "通过<strong>切换模式</strong>转换后，最后确认的状态仍会保留。要结束辅助模式的画面连接，请断开连接或切换到其他模式。"],
+    ["位置与关卡移动", "#position-button",
+      `点击当前<strong>格编号</strong>即可输入位置。手动模式快捷键为 <kbd>${keys[0]}</kbd>。`,
+      `手动模式下可以<strong>拖动角色</strong>改变位置。<strong>关卡箭头</strong>${alternate ? "" : "·方向键 ←/→"}可在手动·自动模式下改变位置。`],
+    ["骰子与双骰", "#roll-button",
+      "<strong>手动</strong>模式下用骰子按钮切换是否双骰，并用<strong>+2~+12</strong>输入掷出的点数之和。",
+      "<strong>自动</strong>模式下点击骰子按钮掷出两颗骰子。如果是双骰，下一次掷骰不消耗次数。",
+      `点击<strong>骰子使用次数</strong>可进行修改。手动模式快捷键为 <kbd>${keys[1]}</kbd>。`],
+    ...(vela ? [["各行动评估与推荐", "#estimates",
+      "<strong>评估值越高，选择越有利</strong>。推荐是评估值最高的选择，并非最终分数预测。",
+      "将鼠标悬停在列表上可比较各行动的数值。点击或按 <kbd>Ctrl+R</kbd> 重新计算。",
+      "小屏幕上请点击<strong>比较</strong>按钮。触屏上长按列表也可打开。",
+      "<strong>模型选择</strong>可更换模型。"]] : [["各行动分数与推荐", "#estimates",
+      "这是对每个选择之后进行模拟得到的<strong>最终分数平均值</strong>。“推荐”是平均分最高的选择，“接近”是与推荐差距不明显的选择。",
+      "各行动分数是用来比较选择的数值，会随 G3 推荐每次重新计算，与持续采用推荐时的预期最终分数不同。",
+      "将鼠标悬停在分数列表上会打开整体比较表。点击列表或按 <kbd>Ctrl+R</kbd> 重新计算。",
+      "小屏幕上请点击<strong>比较</strong>按钮。触屏上长按列表也可打开。",
+      "<strong>模型选择</strong>可更换模型·计算方式。",
+      { label: "统计说明", html: '<dl class="help-reference"><dt>样本数</dt><dd>对该选择进行模拟的次数</dd><dt>平均 / 中位数</dt><dd>平均值是所有结果的平均，中位数是把结果排序后位于中间的值。比较表中的代表值，GPU 用平均值、CPU 用中位数，而推荐两者都以平均值为准。</dd><dt>范围</dt><dd>模拟中出现的最低~最高分数</dd><dt>95% 置信区间</dt><dd>表示平均估计的不确定性，并不意味着一局的分数会落在这个区间内。</dd></dl>' }]]),
+    ["预期最终分数", "#score-forecast",
+      `这是在当前状态下<strong>持续采用 ${vela ? "VELA" : "G3-R100K"} 推荐时</strong>的最终分数预测。不保证实际结果，且与各行动评估分开计算。`,
+      "括号内是相对上一状态的变化。直接修改位置·卡牌等也会改变该数值，因此并不只代表单次行动的效果。",
+      "游戏结束后会显示实际最终分数。无法预测时显示为 <strong>—</strong>。"],
+    ["卡牌的使用与添加", "#hand",
+      "<strong>点击卡牌即可使用</strong>。也可用 <kbd>Ctrl+1~5</kbd> 选择对应槽位。",
+      "<strong>右键点击可直接弃置，不产生移动。</strong>触屏上请长按后选择“弃置”。",
+      "手动模式下，<strong>倍数卡牌需选择实际骰子点数之和(2~12)</strong>后使用。可点击数字按钮，或输入后按 <kbd>Enter</kbd> 应用；按 <kbd>Esc</kbd> 或取消可返回。",
+      `手动模式下可通过<strong>空槽位</strong>或 <kbd>${keys[2]}</kbd> 搜索并添加卡牌。自动模式下会在卡牌获取格抽取。`,
+      { label: "卡牌搜索示例", html: '<dl class="help-reference"><dt>名称片段</dt><dd>用卡牌名称中包含的文字搜索</dd><dt>+10 或 10</dt><dd>前进 10 格</dd><dt>-5</dt><dd>后退 5 格</dd><dt>*2</dt><dd>骰子 2 倍</dd><dt>&gt;</dt><dd>下一关卡</dd></dl>' }],
+    ["到达预览", "#roll-button",
+      "棋盘上会显示<strong>各到达位置的概率</strong>。多个骰子结果到达同一位置时，概率会合并。",
+      "将鼠标悬停在骰子或卡牌上，可查看卡牌格·跳跃格·停留格的概率。当前关卡的到达位置会显示在棋盘上。",
+      "触屏上请长按骰子，或长按卡牌后选择<strong>到达预测</strong>。"],
+    ["全部卡牌与获取标记", "#card-info-button",
+      "用<strong>?</strong>按钮打开和关闭全部卡牌列表。",
+      "手动模式下，点击列表中的卡牌可切换获取标记；右键点击或长按可将其加入手牌。",
+      "仅切换获取标记不会改变手牌；加入手牌后获取标记也会一并更新。自动模式下只能取消获取标记。"],
+    ["重新开始", "#reset-button",
+      "点击<strong>重新开始</strong>并确认后，位置·骰子·卡牌将被重置。本页面保持打开期间的最高纪录会保留。",
+      "如果操作有疑问，可在<strong>帮助</strong>中再次确认。"],
   ].map(([title, target, ...content]) => ({
     title, target,
     paragraphs: content.filter((item) => typeof item === "string"),
@@ -66,8 +66,8 @@ export function showHelp() {
     confirming = false;
   const body = document.createElement("div");
   body.innerHTML =
-    '<div class="help-spotlight" aria-hidden="true"></div><section class="help-bubble"><div class="help-arrow" aria-hidden="true"></div><header class="help-title"><span class="help-progress"></span><h3></h3></header><div class="help-content"><div class="help-copy"></div><button type="button" data-nav="detail" class="help-more" aria-controls="help-extra" aria-expanded="false" hidden>자세히</button><div id="help-extra" class="help-extra" hidden></div></div><footer><button data-nav="close" class="help-skip">건너뛰기</button><span></span><button data-nav="back" aria-label="이전 안내">이전</button><button data-nav="next" class="primary">다음</button></footer><div class="help-support"><span>문제가 있나요?</span><button type="button" class="help-diagnostics">진단 정보 저장</button></div></section>';
-  const node = dialog("Adventure 사용 안내", body, { className: "help-tour" }),
+    '<div class="help-spotlight" aria-hidden="true"></div><section class="help-bubble"><div class="help-arrow" aria-hidden="true"></div><header class="help-title"><span class="help-progress"></span><h3></h3></header><div class="help-content"><div class="help-copy"></div><button type="button" data-nav="detail" class="help-more" aria-controls="help-extra" aria-expanded="false" hidden>详情</button><div id="help-extra" class="help-extra" hidden></div></div><footer><button data-nav="close" class="help-skip">跳过</button><span></span><button data-nav="back" aria-label="上一步">上一步</button><button data-nav="next" class="primary">下一步</button></footer><div class="help-support"><span>遇到问题了吗？</span><button type="button" class="help-diagnostics">保存诊断信息</button></div></section>';
+  const node = dialog("Adventure 使用指南", body, { className: "help-tour" }),
     bubble = body.querySelector(".help-bubble"),
     spot = body.querySelector(".help-spotlight"),
     extra = body.querySelector(".help-extra"),
@@ -139,15 +139,15 @@ export function showHelp() {
     more.setAttribute("aria-expanded", "false");
     bubble.querySelector("[data-nav=back]").disabled = index === 0;
     bubble.querySelector("[data-nav=next]").textContent =
-      index === steps.length - 1 ? "완료" : "다음";
+      index === steps.length - 1 ? "完成" : "下一步";
     place();
   }
   async function exit() {
     if (confirming) return;
     confirming = true;
     const close = await confirmAction(
-      "도움말 종료",
-      "도움말을 종료할까요? 도움말 버튼으로 언제든 다시 열 수 있습니다.",
+      "结束帮助",
+      "要结束帮助吗？随时可以通过帮助按钮重新打开。",
     );
     confirming = false;
     if (close) node.close();
@@ -162,7 +162,7 @@ export function showHelp() {
     else if (nav === "detail") {
       extra.hidden = !extra.hidden;
       e.target.setAttribute("aria-expanded", String(!extra.hidden));
-      e.target.textContent = extra.hidden ? steps[index].detail.label : "설명 접기";
+      e.target.textContent = extra.hidden ? steps[index].detail.label : "收起说明";
       place();
     } else if (nav === "next") {
       if (index === steps.length - 1) node.close();

@@ -29,9 +29,9 @@ export class Prediction {
     const probabilities = document.createElement("div");
     probabilities.className = "prediction-probabilities";
     for (const [label, value, kind] of [
-      ["카드칸", analysis.cardProbability, "card"],
-      ["점프칸", analysis.jumpProbability, "jump"],
-      ["멈춤칸", analysis.stopProbability, "stop"],
+      ["卡牌格", analysis.cardProbability, "card"],
+      ["跳跃格", analysis.jumpProbability, "jump"],
+      ["停留格", analysis.stopProbability, "stop"],
     ]) {
       const cell = document.createElement("div"), labelNode = document.createElement("strong"), valueNode = document.createElement("span");
       cell.className = kind;

@@ -93,7 +93,7 @@ async function prepare({ persist, manifest, cachedOnly = false }) {
   const predictorReady = preparePredictor(manifest);
   post("progress", { phase: "engine", fraction: 0 });
   let cached = persist ? await cachedBundle(manifest).catch(() => null) : null;
-  if (cachedOnly && !cached) throw Object.assign(Error("저장된 모델을 읽지 못했습니다."), { code: "cache-missing" });
+  if (cachedOnly && !cached) throw Object.assign(Error("无法读取已保存的模型。"), { code: "cache-missing" });
   let ptr, files, cacheIssue = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     const fromCache = !!cached;
@@ -104,7 +104,7 @@ async function prepare({ persist, manifest, cachedOnly = false }) {
         module = await createRuntime(files, manifest);
         try { ptr = module._malloc(manifest.decodedBytes); }
         catch (error) { throw Object.assign(error, { code: "memory" }); }
-        if (!ptr) throw Object.assign(Error("모델 실행에 필요한 메모리가 부족합니다."), { code: "memory" });
+        if (!ptr) throw Object.assign(Error("运行模型所需的内存不足。"), { code: "memory" });
       }
       if (persist && !directory) {
           const storage = await checkStorage(manifest.bytes);
@@ -117,7 +117,7 @@ async function prepare({ persist, manifest, cachedOnly = false }) {
           } else cacheIssue = storage.code;
       }
       const stream = cached ? cached.file.stream() : (await responseFor(modelFileUrl(manifest))).body;
-      if (!stream) throw Object.assign(Error("다운로드를 시작하지 못했습니다."), { code: "network" });
+      if (!stream) throw Object.assign(Error("无法开始下载。"), { code: "network" });
       const result = await consumeModel(stream, manifest, {
         writer, write: (bytes, offset) => module.HEAPU8.set(bytes, ptr + offset),
         progress: progressReporter(manifest, fromCache ? "cache" : "download"),
@@ -164,7 +164,7 @@ self.onmessage = async ({ data }) => {
     if (LOCAL_MODEL) data = { ...data, persist: false, cachedOnly: false, stageOnly: false };
     if (["prepare", "probe", "storage"].includes(data.type)) {
       const manifest = data.manifest ? validateManifest(data.manifest) : await fetchManifest();
-      if (manifest.id !== MODEL_ID) throw Object.assign(Error("현재 버전의 모델이 필요합니다."), { code: "model" });
+      if (manifest.id !== MODEL_ID) throw Object.assign(Error("需要当前版本的模型。"), { code: "model" });
       if (data.type === "probe") { post("support", await probe(manifest, data.persist)); return; }
       if (data.type === "storage") { post("support", await checkStorage(manifest.bytes)); return; }
       if (data.stageOnly) { post("ready", await stage(manifest)); return; }

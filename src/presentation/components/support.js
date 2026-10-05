@@ -1,6 +1,6 @@
 import { compatibilityMessage } from "../../content/compatibility.js";
 
-export function showSupport(container, code, { retry, target = "사용 가능 여부", label, retryLabel = "다시 확인" } = {}) {
+export function showSupport(container, code, { retry, target = "可用性", label, retryLabel = "重新确认" } = {}) {
   const key = `${code}:${target}:${!!retry}`;
   if (container.dataset.support === key && container.firstChild) return;
   container.dataset.support = key;
@@ -10,7 +10,7 @@ export function showSupport(container, code, { retry, target = "사용 가능 �
   row.className = "support-actions";
   toggle.type = "button"; toggle.className = "support-toggle";
   toggle.setAttribute("aria-expanded", "false");
-  toggle.setAttribute("aria-label", `${target}: ${title}. 원인과 해결 방법`);
+  toggle.setAttribute("aria-label", `${target}: ${title}. 原因与解决方法`);
   const text = document.createElement("span"); text.textContent = label || title;
   toggle.append(text);
   message.id = "support-detail-" + Math.random().toString(36).slice(2);

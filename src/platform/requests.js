@@ -16,7 +16,7 @@ export async function fetchJson(url, { signal, timeout = 8000 } = {}) {
   const request = deadline(signal, timeout);
   try {
     const response = await fetch(url, { cache: "no-store", signal: request.signal });
-    if (!response.ok) throw Error("파일을 불러오지 못했습니다.");
+    if (!response.ok) throw Error("无法加载文件。");
     return await response.json();
   } finally { request.dispose(); }
 }

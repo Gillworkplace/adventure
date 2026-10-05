@@ -16,7 +16,7 @@ export class GameView {
       const b = document.createElement("button");
       b.className = "estimate-row";
       b.dataset.action = a;
-      b.textContent = (a ? `${a}번카드` : "주사위") + ": —";
+      b.textContent = (a ? `${a}号卡牌` : "骰子") + ": —";
       document.querySelector("#estimates").append(b);
       this.rows.push(b);
       const row = document.createElement("tr");
@@ -43,7 +43,7 @@ export class GameView {
       const b = document.createElement("button");
       b.textContent = "+" + sum;
       b.dataset.sum = sum;
-      b.setAttribute("aria-label", `${sum}칸 직접 이동`);
+      b.setAttribute("aria-label", `${sum}格直接移动`);
       document.querySelector("#dice-buttons").append(b);
     }
   }
@@ -64,55 +64,55 @@ export class GameView {
       t = tiles[s.position - 1],
       automatic = session.mode === "automatic",
       assisting = session.mode === "assist",
-      modeName = { automatic: "자동", manual: "수동", assist: "어시스트" }[session.mode],
+      modeName = { automatic: "自动", manual: "手动", assist: "辅助" }[session.mode],
       disabled = result.status === "disabled",
       vela = result.model === "vela" || result.profile?.model === "vela";
     const text = (id, value) =>
       (document.getElementById(id).textContent = value);
-    text("settings-button", "모델 선택");
+    text("settings-button", "模型选择");
     document.querySelector("#settings-button").dataset.model = vela ? "vela" : "x36";
     const overview = document.querySelector("#score-overview");
     document.querySelector("#compare-button").disabled = disabled || !session.canRecommend;
     for (const id of ["position-button", "dice-used-button", "reset-button", "prev-stage", "next-stage"])
       document.getElementById(id).disabled = assisting;
     overview.classList.toggle("vela-overview", vela);
-    overview.setAttribute("aria-label", vela ? "행동별 평가 비교" : "예상 점수 전체 비교");
-    overview.querySelector("header strong").textContent = vela ? "행동별 평가" : "예상 점수 전체 비교";
+    overview.setAttribute("aria-label", vela ? "行动评估比较" : "预期分数整体比较");
+    overview.querySelector("header strong").textContent = vela ? "行动评估" : "预期分数整体比较";
     overview.querySelector(".legend").innerHTML = vela
-      ? "<b class=recommended>추천</b>: 평가가 가장 높은 선택. 값이 클수록 유리하며, 최종 점수 예측은 아닙니다."
-      : "<b class=recommended>추천</b>: 현재 평균이 가장 높은 선택 · <b class=near>근접</b>: 차이가 작아 우열이 애매한 선택 · <b class=candidate>후보</b>: 아직 제외되지 않은 선택";
+      ? "<b class=recommended>推荐</b>: 评估最高的选择。数值越大越有利，并非最终分数预测。"
+      : "<b class=recommended>推荐</b>: 当前平均分最高的选择 · <b class=near>接近</b>: 差距较小、难分优劣的选择 · <b class=candidate>候选</b>: 尚未被排除的选择";
     text("position", s.position);
     text("stage-name", `${t.stage}.${stageNames[t.stage - 1]}`);
     text("stage-position", t.ordinal);
     text("dice-used", s.diceUsed);
     const forecast = result.forecast || {};
-    text("forecast-label", forecast.terminal ? "최종 점수" : "예상 최종 점수");
-    text("forecast-value", Number.isFinite(forecast.value) ? number(forecast.value, 0) + "점" : forecast.pending ? "계산 중…" : "—");
-    document.getElementById("forecast-value").title = holding ? "직전 확정 상태의 예상 점수입니다." : "";
+    text("forecast-label", forecast.terminal ? "最终分数" : "预期最终分数");
+    text("forecast-value", Number.isFinite(forecast.value) ? number(forecast.value, 0) + "分" : forecast.pending ? "计算中…" : "—");
+    document.getElementById("forecast-value").title = holding ? "这是上一次确认状态下的预期分数。" : "";
     text("forecast-delta", forecast.delta ? `(${forecast.delta > 0 ? "+" : ""}${number(forecast.delta, 0)})` : "");
     document.querySelector("#forecast-delta").dataset.direction = forecast.delta > 0 ? "up" : "down";
     overview.querySelector(".legend").append(document.createElement("br"), document.createTextNode(vela
-      ? "예상 최종 점수는 VELA를 계속 따를 때의 예측입니다. 괄호는 직전 상태 대비 변화입니다."
-      : "예상 최종 점수는 G3-R100K를 계속 따를 때의 예측입니다. 괄호는 직전 상태 대비 변화입니다."));
-    text("high-score", session.highScore + " 칸");
+      ? "预期最终分数是持续采用 VELA 推荐时的预测。括号内为相对上一状态的变化。"
+      : "预期最终分数是持续采用 G3-R100K 推荐时的预测。括号内为相对上一状态的变化。"));
+    text("high-score", session.highScore + " 格");
     text(
       "board-description",
-      `${stageNames[t.stage - 1]}, 현재 ${s.position}칸, 스테이지 ${t.ordinal}번째 칸, 주사위 ${s.diceUsed}회 사용. ${modeName} 모드.`,
+      `${stageNames[t.stage - 1]}，当前第 ${s.position} 格，关卡第 ${t.ordinal} 格，已使用骰子 ${s.diceUsed} 次。${modeName}模式。`,
     );
     const roll = document.querySelector("#roll-button");
     roll.classList.toggle("is-double", s.bonusRoll);
     roll.setAttribute(
       "aria-label",
       automatic
-        ? "주사위 굴리기"
-        : `더블 여부 변경 (${s.bonusRoll ? "더블" : "일반"})`,
+        ? "掷骰子"
+        : `切换双骰状态 (${s.bonusRoll ? "双骰" : "普通"})`,
     );
     roll.disabled = assisting || automatic && session.terminal;
     document
       .querySelector("#mode-button")
       .setAttribute(
         "aria-label",
-        `모드변경 (현재 ${modeName})`,
+        `切换模式 (当前${modeName})`,
       );
     document
       .querySelectorAll("[data-sum]")
@@ -124,13 +124,13 @@ export class GameView {
       b.setAttribute(
         "aria-label",
         id
-          ? `${i + 1}번 카드: ${cardLabels[id - 1]}`
-          : `${i + 1}번 빈 카드 슬롯: 카드 획득`,
+          ? `${i + 1}号卡牌: ${cardLabels[id - 1]}`
+          : `${i + 1}号空卡牌槽位: 获得卡牌`,
       );
       const imageReady = !this.assets || !!this.assets.get(78);
       icon.hidden = !id || !imageReady;
       b.lastElementChild.hidden = !id || imageReady;
-      b.lastElementChild.textContent = id ? cardLabels[id - 1].replace("앞으로 ", "+").replace("뒤로 ", "−").replace("칸 이동", "").replace("주사위 ", "").replace(/!+/g, "").replace("다음 스테이지 첫번째 칸으로 이동", "NEXT").trim() : "";
+      b.lastElementChild.textContent = id ? cardLabels[id - 1].replace("前进 ", "+").replace("后退 ", "−").replace(" 格", "").replace("骰子 ", "").replace(/!+/g, "").replace("移动到下一关卡的第一格", "NEXT").trim() : "";
       b.dataset.cardId = id || "";
       if (id) {
         const index = cardIcons[id - 1];
@@ -145,12 +145,12 @@ export class GameView {
       b.setAttribute("aria-pressed", String(obtained));
     });
     const statusLabels = {
-      recommended: "추천",
-      active: "후보",
-      pruned: "제외",
-      pending: "계산중",
-      terminal: "종료",
-      evaluated: "비교",
+      recommended: "推荐",
+      active: "候选",
+      pruned: "排除",
+      pending: "计算中",
+      terminal: "结束",
+      evaluated: "比较",
     };
     this.rows.forEach((b, a) => {
       b.disabled = !session.canRecommend;
@@ -158,18 +158,18 @@ export class GameView {
         r = result.actions?.[a],
         score = vela ? r?.value : r?.mean;
       let value = disabled || !session.canRecommend && !holding ? "—" : !available
-        ? (vela ? "—" : "0.000점")
+        ? (vela ? "—" : "0.000分")
         : result.status === "error"
-          ? "오류"
+          ? "错误"
           : score !== null && score !== undefined
-            ? score.toFixed(3) + (vela ? "" : "점")
+            ? score.toFixed(3) + (vela ? "" : "分")
             : result.status === "running"
-              ? "계산중..."
+              ? "计算中..."
               : "—";
-      b.textContent = (a ? `${a}번카드` : "주사위") + ": " + value;
-      b.title = holding ? "직전 확정 상태의 평가값입니다." : "";
+      b.textContent = (a ? `${a}号卡牌` : "骰子") + ": " + value;
+      b.title = holding ? "这是上一次确认状态下的评估值。" : "";
       b.classList.toggle("is-near", session.canRecommend && (!!r?.near || (vela && result.recommended?.includes(a))));
-      b.setAttribute("aria-label", `${b.textContent}, ${disabled ? "모델 선택" : "다시 계산"}`);
+      b.setAttribute("aria-label", `${b.textContent}, ${disabled ? "选择模型" : "重新计算"}`);
       const row = this.tableRows[a],
         recommended = session.canRecommend && result.recommended?.includes(a),
         near = session.canRecommend && r?.near && !recommended;
@@ -177,21 +177,21 @@ export class GameView {
       row.dataset.available = String(available);
       const center = vela ? r?.value : result.profile?.engine === "cpu" ? r?.median : r?.mean;
       const status = !available
-        ? "비어 있음"
+        ? "空"
         : holding
-          ? "이전 값"
+          ? "上次值"
         : result.status === "error"
-          ? "오류"
+          ? "错误"
           : recommended
-            ? "추천"
+            ? "推荐"
             : near
-              ? "근접"
+              ? "接近"
               : statusLabels[r?.status] ||
-                (result.status === "running" ? "계산중" : "—");
+                (result.status === "running" ? "计算中" : "—");
       const values = [
         a
-          ? `${a}번 카드${s.hand[a - 1] ? " · " + cardLabels[s.hand[a - 1] - 1] : ""}`
-          : "주사위",
+          ? `${a}号卡牌${s.hand[a - 1] ? " · " + cardLabels[s.hand[a - 1] - 1] : ""}`
+          : "骰子",
         available ? number(center, vela ? 3 : 0) : "—",
         available && r?.count
           ? `${number(r.min, 0)} ~ ${number(r.max, 0)}`
@@ -203,16 +203,16 @@ export class GameView {
         available ? number(r?.gap) : "—",
         status,
       ];
-      const labels = ["행동", vela ? "평가값" : result.profile?.engine === "cpu" ? "중앙값" : "평균", "범위", "95% CI", "샘플", "추천차", "상태"];
+      const labels = ["行动", vela ? "评估值" : result.profile?.engine === "cpu" ? "中位数" : "平均", "范围", "95% CI", "样本", "推荐差", "状态"];
       values.forEach((v, i) => { row.children[i].textContent = v; row.children[i].dataset.label = labels[i]; });
     });
-    text("center-label", vela ? "평가값" : result.profile?.engine === "cpu" ? "중앙값" : "평균");
+    text("center-label", vela ? "评估值" : result.profile?.engine === "cpu" ? "中位数" : "平均");
     text(
       "evaluation-detail",
       result.status === "error"
         ? result.message
         : result.elapsedMs !== undefined
-          ? vela ? `${result.modelName} · ${number(result.elapsedMs / 1000, 3)}초` : `${result.profile?.engine.toUpperCase()} · G3 · ${number(result.elapsedMs / 1000, 2)}초 · 실제 ${number(result.totalSamples, 0)}회${result.status === "running" ? " · 계산중" : ""}`
+          ? vela ? `${result.modelName} · ${number(result.elapsedMs / 1000, 3)}秒` : `${result.profile?.engine.toUpperCase()} · G3 · ${number(result.elapsedMs / 1000, 2)}秒 · 实际 ${number(result.totalSamples, 0)} 次${result.status === "running" ? " · 计算中" : ""}`
           : "",
     );
   }

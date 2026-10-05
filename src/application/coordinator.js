@@ -246,7 +246,7 @@ export class Coordinator extends EventTarget {
           const { VelaBackend } = await import("../compute/vela/backend.js");
           if (!current()) return;
           this.vela ??= new VelaBackend();
-          if (!this.vela.preparing) this.notice("이전 모델을 다시 준비하고 있습니다.");
+          if (!this.vela.preparing) this.notice("正在重新准备之前的模型。");
           const saved = this.restoreVela.cacheSaved && cacheAllowed();
           await this.vela.prepare({ manifest: this.restoreVela.manifest, persist: saved, cachedOnly: saved });
           if (!current()) return;
@@ -286,7 +286,7 @@ export class Coordinator extends EventTarget {
         if (p.engine === "gpu") {
           this.gpuSupport = { state: "unavailable", available: false, code: "gpu-lost" };
           this.settings.engine = "cpu"; this.supportChanged();
-          this.notice("GPU 계산을 중단하고 CPU로 전환했습니다.");
+          this.notice("GPU 计算已中断，已切换到 CPU。");
           return this.recalculate();
         }
         this.publish({
@@ -294,8 +294,8 @@ export class Coordinator extends EventTarget {
           model: this.settings.model,
           message:
             p.engine === "gpu"
-              ? "GPU 계산을 완료하지 못했습니다. 계산 설정에서 CPU를 선택하거나 다시 시도해 주세요."
-              : "계산을 완료하지 못했습니다. 다시 계산해 주세요.",
+              ? "GPU 计算未能完成。请在计算设置中选择 CPU，或重试。"
+              : "计算未能完成。请重新计算。",
           actions: [],
           profile: p,
         });
@@ -331,7 +331,7 @@ export class Coordinator extends EventTarget {
             const committed = await backend.commit({ persist: this.velaCacheAllowed && backend.info.cacheSaved });
             if (!active()) return;
             if (committed.cacheIssue) this.notice(compatibilityMessage(committed.cacheIssue).title);
-          } catch (error) { if (!active()) return; diagnostics.capture(error, "model.commit"); this.notice("모델은 사용할 수 있지만 저장 상태를 확인하지 못했습니다."); }
+          } catch (error) { if (!active()) return; diagnostics.capture(error, "model.commit"); this.notice("模型可以使用，但未能确认保存状态。"); }
         }
       }
       if (!current()) return;

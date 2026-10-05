@@ -62,13 +62,17 @@ export function captureLocalWindow({ hwnd }) {
           track.addEventListener("ended", stop);
           stream.addEventListener("inactive", stop);
         }
-        // 裁剪区域变化时按画布尺寸缩放绘制，保持轨道尺寸稳定。
+        // 裁剪区域变化时按画布尺寸等比缩放绘制（居中留边），避免拉伸变形。
         const crop = localCrop(hwnd);
-        if (crop && crop.x + crop.w <= bitmap.width && crop.y + crop.h <= bitmap.height)
-          context.drawImage(bitmap, crop.x, crop.y, crop.w, crop.h, 0, 0, canvas.width, canvas.height);
-        else if (bitmap.width !== canvas.width || bitmap.height !== canvas.height)
-          context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-        else context.drawImage(bitmap, 0, 0);
+        context.fillStyle = "#000";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        const sx = crop && crop.x + crop.w <= bitmap.width && crop.y + crop.h <= bitmap.height ? crop.x : 0;
+        const sy = crop && crop.x + crop.w <= bitmap.width && crop.y + crop.h <= bitmap.height ? crop.y : 0;
+        const sw = crop && sx ? crop.w : bitmap.width;
+        const sh = crop && sy ? crop.h : bitmap.height;
+        const scale = Math.min(canvas.width / sw, canvas.height / sh);
+        const dw = sw * scale, dh = sh * scale;
+        context.drawImage(bitmap, sx, sy, sw, sh, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh);
         bitmap.close();
         failures = 0;
         resolve(stream);

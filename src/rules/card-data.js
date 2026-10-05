@@ -1,4 +1,4 @@
-// [id, type, value]. Card identity is preserved.
+// [id, type, value]。卡牌身份保持不变。
 export const cardRows = [
   [1, 1, 1],
   [2, 1, 2],

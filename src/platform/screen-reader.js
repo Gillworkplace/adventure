@@ -63,8 +63,8 @@ export class ScreenReader {
   }
   requestFrame(after = performance.now()) {
     if (this.stopped) return;
-    // An in-flight frame captured after the calculation began can satisfy the
-    // request. Do not force another capture that races audio startup.
+    // 计算开始之后采集、尚在传输中的帧即可满足请求。
+    // 不要强行再次采集，以免与音频启动相互竞争。
     if (this.busy && this.sentAt >= after) return;
     this.requestedAfter = Math.max(this.requestedAfter ?? -Infinity, after);
     this.urgent = true;

@@ -1,6 +1,6 @@
 #pragma once
 #include <sstream>
-// Independent training loader: immutable B/Phi/T/exact singletons; only GA changes.
+// 独立的训练加载器：B/Phi/T/exact 单例均不可变，只有 GA 会变化。
 struct Compact {
  static uint64_t nextRevision(){static std::atomic<uint64_t> seq{0};return ++seq;}
  uint64_t revision=nextRevision(); Codec codec;
@@ -33,7 +33,7 @@ struct Compact {
  void save(const std::string&path)const{
   if(quant)throw std::runtime_error("save expects dequantized GA");std::ofstream f(path,std::ios::binary);if(!f)throw std::runtime_error("save open");int h[]={exact?0x56435333:0x56435332,100,N+1,0,K,TG,exact?1:0,0};f.write((char*)h,32);
   auto wr=[&](auto&v){if(!v.empty())f.write((char*)v.data(),v.size()*sizeof(v[0]));};wr(B);if(exact)wr(SINGLE);f.write((char*)&as,4);f.write((char*)&ps,4);wr(PQ);wr(GT);
-  // Preserve the original scale; trust-region updates cannot silently rescale every coefficient.
+  // 保留原始缩放系数；信赖域更新无法悄悄地整体重缩放所有系数。
   f.write((char*)&gs,4);for(float x:GA){double q=std::nearbyint(x/gs);if(q< -32767||q>32767)throw std::runtime_error("quantization saturation");int16_t z=int16_t(q);f.write((char*)&z,2);}if(!f)throw std::runtime_error("save truncated");
  }
 };

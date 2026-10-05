@@ -1,6 +1,6 @@
-// Full-hand finite-resource dynamic programming for the original board.
-// Auxiliary model ONLY: card draws are IID from the 30-card population.
-// The deployed game/evaluators retain non-replacement draws and the true cap 5.
+// 针对原始棋盘的满手牌有限资源动态规划。
+// 仅作辅助模型：抽牌按 30 张牌总体的 IID（独立同分布）处理。
+// 实际部署的游戏/评估器仍保留不放回抽牌与真实的手牌上限 5。
 #include "value-model.hpp"
 #include <omp.h>
 #include <chrono>
@@ -108,8 +108,8 @@ struct Solver {
       }
     }
   }
-  // Vectorize over hands, not dice outcomes. Each multiplier backup for a
-  // remaining hand is reused by all hands containing that multiplier.
+  // 沿手牌维度而非骰子结果做向量化。对某个剩余手牌的每次乘数卡回溯值，
+  // 会被所有包含该乘数卡的手牌复用。
   void expectation(int r,int b,int p,int mult,int len,std::vector<double>& sum){
     std::fill(sum.begin(),sum.begin()+len,0.0);
     for(int d=2;d<=12;d++){
@@ -141,7 +141,7 @@ struct Solver {
         }
       }
     }
-    // Old resource layers must stay intact until ALL chance backups finish.
+    // 旧的资源层必须保持完好，直到所有机会节点回溯全部完成。
     std::memcpy(row(b,0),wait.data(),wait.size()*sizeof(float));
   }
   double freeBackup(int b){

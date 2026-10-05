@@ -1,5 +1,5 @@
-// G3 Full-E (A+C+D+H): Float64 lookup tables preserve accumulation order.
-// Provenance and parity gates: docs/CPU_ENGINE_UPDATE.md
+// G3 Full-E (A+C+D+H)：Float64 查找表保持累加顺序。
+// 出处与一致性校验门：docs/CPU_ENGINE_UPDATE.md
 import {policyStage as stage} from '../../rules/index.js';
 import {X36_WEIGHTS,getX36CpuLuts} from './tables.js';
 const X36_DICE_SUM_WEIGHT={2:1,3:2,4:3,5:4,6:5,7:6,8:5,9:4,10:3,11:2,12:1};
@@ -38,14 +38,14 @@ const projectedScoreAfterMove = (fromScore, rawValue, stop) => {
 const MULT_MAP = { 2: 1, 3: 2, 5: 3, 7: 4, 8: 5, 10: 6 };
 const MULT_VALUES = [1, 2, 3, 5, 7, 8, 10];
 
-// === Precomputed LUTs ===============================================
-// (A) Expected futureCardP3 LUT
-// shape: 7 families x 2 isDouble x 4 effRemaining x 2899 scores
-// eff: isDouble ? clamp(0,3, 100-diceUse) : clamp(0,3, 99-diceUse)
-// Phase transition semantics (운영 successorFutureCardP3의 lookup과 정확히 일치):
+// === 预计算的 LUT ===============================================
+// (A) 期望 futureCardP3 LUT
+// 形状：7 个族 x 2 种 isDouble x 4 种 effRemaining x 2899 个分数
+// eff：isDouble ? clamp(0,3, 100-diceUse) : clamp(0,3, 99-diceUse)
+// 相位转移语义（与线上 successorFutureCardP3 的 lookup 完全一致）：
 //   isDouble=true  -> nextRemaining = clamp(100 - diceUse) = eff
 //   isDouble=false -> nextRemaining = clamp(99 - diceUse)  = eff
-// 즉, paid roll 후에도 nextRemaining = eff (board.js의 futureCardP3 build의 max(0, phase-1)와 다른 운영 의미).
+// 即，paid roll 之后 nextRemaining 仍 = eff（与 board.js 中 futureCardP3 构建里的 max(0, phase-1) 是不同的线上语义）。
 const expectedFutureP3Lut = new Float64Array(7 * 2 * 4 * stride);
 
 function expectedFutureLutIndex(family, isDouble, effRemaining, score) {
@@ -75,7 +75,7 @@ for (let family = 0; family < 7; family++) {
   }
 }
 
-// (D) Roll / Multiplier coefficient LUT
+// (D) 掷骰 / 倍数卡系数 LUT
 const rollBaseWithCard = new Float64Array(stride);
 const rollPoolCoeff = new Float64Array(stride);
 const rollBaseNoCard = new Float64Array(stride);
@@ -141,7 +141,7 @@ for (let f = 1; f <= 6; f++) {
   }
 }
 
-// (H) Move transition / chain LUT (move values: -3..12)
+// (H) 移动转移 / 连锁 LUT（移动值范围：-3..12）
 const MOVE_OFFSET = 3;
 const moveLandingLut = Array.from({ length: 16 }, () => new Uint16Array(stride));
 const moveProjectedLut = Array.from({ length: 16 }, () => new Uint16Array(stride));
@@ -178,7 +178,7 @@ export function chooseG3(board) {
   const effRemaining = Math.max(0, Math.min(3, isDouble ? 100 - diceUse : 99 - diceUse));
   const currentRemaining = Math.max(0, Math.min(3, 100 - diceUse));
 
-  // 풀 계산 (E 미적용)
+  // 牌池计算（未应用 E）
   let remainingQuality = luts.totalCardQuality;
   let remainingCount = 30;
   for (let i = 0; i < 30; i++) {

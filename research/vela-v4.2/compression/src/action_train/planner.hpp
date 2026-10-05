@@ -1,4 +1,4 @@
-// Student planner is a mechanically templated copy of the frozen FULL100 reference.
+// 学生规划器是冻结的 FULL100 参考实现经机械模板化得到的副本。
 #include "../../include/exact-endgame.hpp"
 #include "../../include/deck-coefficients.hpp"
 #include <windows.h>

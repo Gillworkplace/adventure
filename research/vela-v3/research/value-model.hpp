@@ -23,7 +23,7 @@ struct ValueModel{
     if(types[c]==2){double use=diceExpectation(r,b,[&](int rr,int bb,int d){return afterBase(rr,bb,LAND[p+values[c]*d+3]);})-row(r,b,p)[0];val=std::max(val,use);}
     wait[p*(K+1)+c]=val;row(r,b,p)[c]=val;
    }
-   // Fixed-point iteration handles deterministic cards that draw another card.
+   // 不动点迭代处理会触发再抽一张牌的确定性卡牌。
    for(int it=0;it<100;it++){
     for(int p=1;p<=N;p++)draw[p]=average(row(r,b,p));double err=0;
     for(int p=1;p<=N;p++)for(int c=1;c<=K;c++)if(types[c]!=2){int code=types[c]==3?NEXT[p]:LAND[p+values[c]+3],dest=code&4095;double use=row(r,b,dest)[0]+((code&4096)?draw[dest]:0)-row(r,b,p)[0];double val=std::max(wait[p*(K+1)+c],use);err=std::max(err,std::abs(val-row(r,b,p)[c]));row(r,b,p)[c]=val;}

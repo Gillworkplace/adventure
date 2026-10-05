@@ -10,16 +10,16 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const classes = hand => hand.map(cardClass);
 const core = observation => ({ position: observation.position, diceUsed: observation.diceUsed, bonusRoll: observation.bonusRoll, hand: observation.hand });
 const keyOf = observation => JSON.stringify(core(observation));
-// A continuity heuristic, not a proof of action count or the speech frame-age
-// limit. Brief window closure is a normal way to skip movement animations.
+// 连续性启发式判断，不是对动作次数的证明，也不受语音帧龄上限
+// 约束。短暂关闭窗口是跳过移动动画的正常方式。
 const MAX_OBSERVATION_GAP_MS = 5000;
 function hasObservationGap(records, after, until = Infinity) {
   let readableAt = after;
   for (const record of records) {
     if (record.at <= after || record.at > until) continue;
     if (record.at - readableAt > MAX_OBSERVATION_GAP_MS) return true;
-    // A recognized game with incomplete counters/hand still establishes screen
-    // continuity during animations; it does not establish a completed state.
+    // 识别到但计数器/手牌不完整的游戏画面，仍能建立动画期间的屏幕
+    // 连续性；但它不能确立一个已完成的状态。
     if (record.observation.visible || record.observation.partial) readableAt = record.at;
   }
   return false;
@@ -46,8 +46,8 @@ function deckSignature(mask) {
 const deckGroups = cards.slice(1).filter(card => cardClass(card.id) === card.id)
   .map(card => idsFor(card.id).reduce((mask, id) => mask | (1 << (id - 1)), 0));
 
-// Each paid roll can supply at most one subsequent free roll. Keeping a final
-// bonus reserves that free roll; card actions alone cannot increase hand size.
+// 每次付费掷骰最多带来一次后续的免费掷骰。在最终时刻保留奖励会
+// 占用那次免费掷骰；仅靠卡牌动作无法增加手牌数。
 const remainingRolls = (state, target) => 2 * (target.diceUsed - state.diceUsed) +
   Number(state.bonusRoll) - Number(target.bonusRoll);
 const handReachable = (state, target) => state.diceUsed <= target.diceUsed &&
@@ -61,9 +61,9 @@ function cardReachability() {
     if (from === target) return true;
     const key = target + ":" + from;
     if (answers.has(key)) return answers.get(key);
-    // Relax actual hands/decks to all deterministic cards. With no rolls and
-    // equal hand sizes, every action must draw a card. Failure even in this
-    // larger graph proves impossibility. A budget stop proves nothing.
+    // 把实际手牌/牌库放宽为全部确定性卡牌。在没有掷骰且手牌数相同
+    // 的情况下，每个动作都必须抽一张牌。即使在这个更大的图中失败，
+    // 也能证明不可达。因预算耗尽而停止则什么也证明不了。
     const started = performance.now(), pending = [from], seen = new Set(pending);
     for (let head = 0; head < pending.length; head++) {
       if (head >= 64 || performance.now() - started > .75) { answers.set(key, true); return true; }
@@ -81,8 +81,8 @@ function cardReachability() {
   };
 }
 
-// Lower bound under arbitrarily large forward moves, including forced jumps.
-// Repeated negative unit steps relax each real backward card's movement.
+// 在任意大的前向移动（包括强制跳跃）下的下界。
+// 反复的负单位步会放宽每张真实后退卡的移动量。
 const forwardFloor = new Uint16Array(tiles.length + 1);
 let landingFloor = tiles.length;
 for (let position = tiles.length; position >= 1; position--) {
@@ -120,12 +120,12 @@ function handInventoryReachability() {
     const deck = decks.get(state.deckAvailable), hand = classes(state.hand);
     const currentMultipliers = state.hand.filter(id => cards[id].type === 2).length;
     const targetMultipliers = target.hand.filter(id => cards[id].type === 2).length;
-    // Resetting requires drawing every remaining multiplier. Each must either
-    // survive in the final hand or consume a roll when used. If a reset might
-    // fit, this inventory proof is deliberately unavailable.
+    // 重置需要抽完所有剩余的倍数卡。每张倍数卡要么留存在最终手牌
+    // 中，要么在使用时消耗一次掷骰。若重置有可能成立，则刻意
+    // 不启用这项库存证明。
     if (currentMultipliers + deck.multipliers - targetMultipliers <= remainingRolls(state, target)) return true;
-    // Retained cards remain an ordered subsequence, before every newly drawn
-    // card. Try all splits of the final hand into retained prefix/drawn suffix.
+    // 保留的卡牌仍是一个有序子序列，位于所有新抽卡牌之前。
+    // 尝试把最终手牌按“保留前缀/新抽后缀”的所有切分方式进行验证。
     if (!retainedHandPossible(hand, target.hand, deck.counts)) return false;
     let backward = deck.backward;
     for (let slot = 0; slot < hand.length; slot++) {
@@ -187,7 +187,7 @@ export function reconcileMultiStep(previous, observed) {
   return candidates.length === 1 ? candidates : [];
 }
 
-// Keep ambiguity visible instead of falling back to a prior accepted state.
+// 让歧义保持可见，而不是回退到先前已接受的状态。
 export function resolveTransition(previous, observed, { intermediate = null, firstActions = null, firstBonusRoll = null, directOnly = false, exhaustive = false } = {}) {
   if (exhaustive && !intermediate && !directOnly) {
     const shallow = resolveTransition(previous, observed, { firstActions, firstBonusRoll });
@@ -233,8 +233,8 @@ export function resolveTransition(previous, observed, { intermediate = null, fir
         for (const candidate of reconcileState(midState, observed)) {
           candidate.reset ||= !mask;
           add(candidate);
-          // Once two different remaining decks are possible, more paths cannot
-          // turn the result back into an unambiguous recovery.
+          // 一旦可能存在两种不同的剩余牌库，更多路径就无法
+          // 把结果重新变回明确的恢复。
           if (unique.size > 1) return [...unique.values()];
         }
       }
@@ -243,8 +243,8 @@ export function resolveTransition(previous, observed, { intermediate = null, fir
   return [...unique.values()];
 }
 
-// Explore unobserved actions by state, not by an arbitrary two-action cutoff.
-// A budget stop is unresolved, even if one matching state was found so far.
+// 按状态探索未观测到的动作，而不是用任意的两动作截断。
+// 因预算耗尽而停止视为未解决，即使目前已经找到一个匹配状态。
 export function createRecoverySearch(previous, observed, { firstActions = null, firstBonusRoll = null, checkpoints = [], maxStates = 4096 } = {}) {
   const cardReachable = cardReachability();
   const inventoryReachable = handInventoryReachability();
@@ -263,8 +263,8 @@ export function createRecoverySearch(previous, observed, { firstActions = null, 
       for (let action = 0; action <= state.hand.length; action++) {
         if (head === 0 && firstActions && !firstActions.includes(action)) continue;
         if ((!action || cards[state.hand[action - 1]].type === 2) && remainingRolls(state, required) === 0) continue;
-        // Pruned branches also yield, so rejecting many paths cannot turn a
-        // nominally incremental search into one long synchronous task.
+        // 被剪枝的分支也会 yield，这样大量路径被拒绝时，名义上增量的
+        // 搜索也不会变成一个冗长的同步任务。
         yield;
         const projection = project(state, action);
         if (state.diceUsed + projection.diceDelta > required.diceUsed) continue;
@@ -296,7 +296,7 @@ export function createRecoverySearch(previous, observed, { firstActions = null, 
               if (matches.size > 1) return { resolved: [...matches.values()], exhausted: true, nodes };
             }
             const nextRequired = checkpoints[checkpoint] ?? observed;
-            // A non-bonus state cannot regain a bonus without another paid roll.
+            // 非奖励状态若不再次付费掷骰，就无法重新获得奖励。
             const possible = !(next.diceUsed === nextRequired.diceUsed && nextRequired.bonusRoll && !next.bonusRoll);
             if (possible && !seen.has(key)) {
               if (seen.size >= maxStates) return { resolved: [], exhausted: false, nodes };
@@ -398,8 +398,8 @@ export class AssistTracker {
     else this.observations.splice(index, 0, row);
     const newest = this.observations.at(-1).at;
     while (this.observations.length > 1200 || newest - this.observations[0].at > 120000) this.observations.shift();
-    // Recompute after late history rereads. A single blind sample is not
-    // evidence of another action; only a sustained gap enables gap recovery.
+    // 在延迟重读历史后重新计算。单个盲样本不构成发生另一次动作的
+    // 证据；只有持续的空档才启用空档恢复。
     this.lost = !!this.state && hasObservationGap(this.observations, this.stateAt);
   }
   intermediate(observed, at) {
@@ -410,8 +410,8 @@ export class AssistTracker {
     const consider = () => {
       if (!group || group.key === current) return;
       if (group.observation.position === anchor.position) {
-        // A strongly identified dice popup can provide one start sample; the
-        // final frame independently confirms its counters and remaining hand.
+        // 强识别的骰子弹窗可以提供一个起始样本；最终帧会
+        // 独立确认其计数器和剩余手牌。
         if ((group.count < 2 || group.last - group.first < 50) && !group.observation.overlay) return;
         if (anchor === this.state && group.key !== keyOf({ ...core(this.state), hand: classes(this.state.hand) })) {
           const actions = startedActions(this.state, group.observation);
@@ -419,9 +419,9 @@ export class AssistTracker {
         }
         return;
       }
-      // An actual foreign score sample must not be ignored merely because it
-      // did not last long enough to become a confirmed checkpoint. Hand award
-      // frames at the current destination are arrival evidence, not extra moves.
+      // 真实的外来分数样本不能仅因为它持续时间太短、未能成为确认
+      // 检查点就被忽略。当前目的地上的手牌奖励帧是抵达证据，
+      // 不是额外移动。
       if (group.observation.position === observed.position && group.observation.diceUsed === observed.diceUsed) return;
       if (group.count < 2 || group.last - group.first < 50) { unconfirmed = true; return; }
       const candidates = reconcileState(anchor, group.observation);
@@ -474,8 +474,8 @@ export class AssistTracker {
     const missingBelow = this.votes.some((vote, i) => i > range.end && vote.count < 2);
     const missingAbove = this.votes.some((vote, i) => i < range.start && vote.count < 2);
 
-    // Wait for a second fresh sample of the rows currently on screen before
-    // telling the user to scroll away from them.
+    // 在提示用户滚离当前屏幕上的那些行之前，
+    // 先等待它们的第二个新鲜样本。
     if (this.votes.some((vote, i) => i >= range.start && i <= range.end && vote.count === 1)) return "deck-scan";
 
     if (missingBelow && range.start <= 2) return "deck-down";
@@ -494,8 +494,8 @@ export class AssistTracker {
   update(observation, at, { sourceFrame = at } = {}) {
     if (!Number.isFinite(at) || at <= this.lastAt) return this.result("waiting");
     this.record(observation, at);
-    // A delayed/missing frame is not evidence that the known deck changed.
-    // Try the observed final state first; only unresolved changes need a scan.
+    // 延迟/丢失的帧不能证明已知牌库发生了变化。
+    // 先尝试观测到的最终状态；只有无法解释的变化才需要扫描。
     if (at - this.lastAt > 3500) { this.pendingKey = null; this.movingKey = null; }
     this.lastAt = at;
     this.lastObservation = observation;
@@ -528,10 +528,10 @@ export class AssistTracker {
     else this.pendingCount++;
     if (!this.verified) this.collectDeck(observed, key, at, sourceFrame);
     const unchanged = this.verified && same(core(observed), { ...core(this.state), hand: classes(this.state.hand) });
-    // Old score with consumed dice/cards is an action prelude, including when
-    // another window hides the board. A legal two-action explanation alone
-    // cannot turn it into an arrived state. Observed departure and return permit genuine
-    // same-square returns; clamped actions with no possible movement bypass it.
+    // 分数未变但骰子/卡牌已消耗，是动作前奏，包括棋盘被其他窗口
+    // 遮住的情况。仅凭一个合法的两动作解释不能把它变成已抵达状态。
+    // 观测到的离场与回归允许真正的同格返回；无任何可能移动的
+    // 被钳制动作则绕过该检查。
     const absent = observed.character?.present === false && Number.isFinite(observed.character.score) &&
       observed.character.score <= .26;
     const unknown = !observed.character || typeof observed.character.present !== "boolean" ||
@@ -575,9 +575,9 @@ export class AssistTracker {
         observed.character?.present && this.motion.returned < 2 && !this.manual)) {
       this.movingKey = key;
       this.actionHint ||= startedActions(this.state, observed);
-      // Unknown sprite evidence is neither presence nor a movement veto.
-      // A core that is also a legal same-square return is genuinely ambiguous:
-      // never authorize a prelude, but do not wait forever on an optional probe.
+      // 未知的角色图元证据既不构成在场，也不构成移动否决。
+      // 一个同时也是合法同格返回的核心状态是真正歧义的：
+      // 永远不要授权前奏，但也不要在可选探测上无限等待。
       if (!absent && reconcileState(this.state, observed).length && at - this.pendingSince >= 4500) {
         this.requireDeck("gap");
         this.collectDeck(observed, key, at, sourceFrame);
@@ -599,23 +599,23 @@ export class AssistTracker {
     if (this.reconciliation?.state !== this.state || this.reconciliation.key !== key || this.reconciliation.evidenceKey !== evidenceKey) {
       const candidates = reconcileState(this.state, observed);
       let anchor = this.state, reset = false;
-      // A later visible checkpoint does not erase uncertainty before it.
-      // Across a real blind interval, keep every compatible prefix deck and
-      // constrain the search by the ordered positive observations instead.
+      // 更晚的可见检查点不能抹除它之前的不确定性。
+      // 跨越真实的盲区间时，保留所有兼容的前缀牌库，
+      // 改为用有序的正面观测来约束搜索。
       const uncertainPrefix = this.lost || evidence.unconfirmed;
       for (const checkpoint of uncertainPrefix ? [] : evidence.checkpoints) {
         const step = reconcileState(anchor, checkpoint)[0];
         anchor = step.state; reset ||= step.reset;
       }
-      // Prefer a compatible single action in an ordinary continuous session,
-      // including a brief animation skip with no captured action prelude.
-      // Actual foreign-state evidence or a long gap still broadens recovery.
+      // 在普通连续会话中优先寻找兼容的单动作解释，
+      // 包括未捕获到动作前奏的短暂动画跳过。
+      // 真实的外来状态证据或长时间空档仍会扩大恢复范围。
       const directOnly = !uncertainPrefix && !gapAfterCheckpoint;
       const options = { firstActions: !intermediate || uncertainPrefix ? this.actionHint : null,
         firstBonusRoll: !intermediate || uncertainPrefix ? evidence.start?.bonusRoll : null, directOnly,
         checkpoints: uncertainPrefix ? evidence.checkpoints : [] };
-      // Start with single-action candidates. Do not enumerate every two-action
-      // draw combination before the constrained recovery has applied bounds.
+      // 先从单动作候选开始。在受约束的恢复应用边界之前，
+      // 不要枚举每一种两动作抽牌组合。
       let resolved = uncertainPrefix && intermediate ? [] :
         resolveTransition(anchor, observed, { ...options, directOnly: true }), search = null;
       if (resolved.length < 2 && (!directOnly || resolved.length === 0)) {

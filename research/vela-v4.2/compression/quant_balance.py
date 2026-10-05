@@ -1,8 +1,8 @@
-"""Function-preserving channel scaling before existing global int16 quantizers.
+"""在现有全局 int16 量化器之前进行的保函数通道缩放。
 
-No training, Q mining, games, or original artifact modification. Selection uses
-quantization error against the frozen float function on even diagnostic rows;
-odd rows are a fixed diagnostic holdout, not a whole-game independence claim.
+不涉及训练、Q 挖掘、对局或对原始制品的修改。选择依据是偶数诊断行上
+相对冻结浮点函数的量化误差；奇数行是固定的诊断保留集，
+并非对整局独立性的声明。
 """
 import os
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '4')
@@ -113,7 +113,7 @@ def run(name,query):
             'float32_rescale_invariance':stats(fp-target),'float64_contraction_rescale_invariance':stats(fp64-target64),
             'phi_scale':float(ps),'ga_scale':float(gs),'a_min':float(a.min()),'a_max':float(a.max()),
             'zero_phi_columns':int((pm==0).sum()),'zero_ga_columns':int((gm==0).sum())}
-        # Real-arithmetic equivalence leaves only floating-point storage/contraction differences.
+        # 实数运算下完全等价，剩余差异仅来自浮点存储/收缩。
         assert record['float32_rescale_invariance']['max_abs']<.001
         assert record['float64_contraction_rescale_invariance']['max_abs']<.001
         if alpha is None:

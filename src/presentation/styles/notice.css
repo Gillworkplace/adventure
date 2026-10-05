@@ -1,8 +1,8 @@
 /* ==========================================================================
-   Notice Button & Modal Dialog Styles
+   通知按钮与模态对话框样式
    ========================================================================== */
 
-/* Profile panel megaphone icon button */
+/* 资料面板上的扩音器图标按钮 */
 .notice-button {
   position: absolute;
   top: 6px;
@@ -48,7 +48,7 @@
   left: 34px;
 }
 
-/* Notice Dialog Window */
+/* 通知对话框窗口 */
 .notice-dialog {
   width: min(440px, calc(100vw - 24px));
   padding: 20px;
@@ -125,7 +125,7 @@
   color: #2b6cb0;
 }
 
-/* Footer buttons */
+/* 底部按钮 */
 .notice-footer {
   display: flex;
   align-items: center;

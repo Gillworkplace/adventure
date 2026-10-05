@@ -1,6 +1,6 @@
 #pragma once
-// Fixed-capacity features for the centered contrast of a FUTURE unexpanded draw.
-// This is a heuristic leaf value, not a correction to an already-expanded draw.
+// 针对将来尚未展开的抽牌，做中心化对比的固定容量特征。
+// 这是启发式的叶子值，不是对已展开抽牌的修正。
 struct HDTail {
  Compact100&M;Meta&T;
  struct Feature {uint64_t key=~0ULL;double v[275+Compact100::MaxK]={};};
@@ -9,7 +9,7 @@ struct HDTail {
  HDTail(Compact100&m,Meta&t):M(m),T(t){}
  static void prepare(Compact100&m,Meta&t){
   if(m.L)throw std::runtime_error("HD unsupported for local residual models");
-  // Shared bases may have nonzero singleton values; feature() centers them explicitly.
+  // 共享基可能带有非零的单例值；feature() 会对它们显式做中心化。
   m.hdIID.resize(14950*m.K);
   for(int h=0;h<14950;h++)for(int c=1;c<=22;c++)for(int k=0;k<m.K;k++)m.hdIID[size_t(h)*m.K+k]+=double(m.codec.capacity[c])/30*m.phiValue(t.hands[h].add[c],k);
  }
@@ -41,7 +41,7 @@ struct HDTail {
    }
    for(int k=0;k<M.K;k++)out.v[275+k]=-M.hdIID[size_t(h)*M.K+k];
    for(int j=0;j<dc.k;j++){int hn=T.hands[h].add[dc.c[j]];double prob=double(dc.count[j])/dc.n;for(int k=0;k<M.K;k++)out.v[275+k]+=prob*M.phiValue(hn,k);}
-   // Subtract the empty-hand contrast; old residual models have exact zero singleton phi.
+   // 减去空手牌的对比项；旧残差模型的单例 phi 恰好为零。
    for(int k=0;k<M.K;k++){
     double center=0;for(int c=1;c<=22;c++)center+=w[c]*M.phiValue(T.hands[0].add[c],k);
     if(center!=0)out.v[275+k]-=center;

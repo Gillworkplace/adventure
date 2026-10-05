@@ -99,8 +99,8 @@ export class GameRecognizer {
     if (samples.length < 4) return null;
     const levels = samples.map(rgb => Math.max(...rgb)).sort((a, b) => a - b);
     const level = levels[Math.floor(levels.length / 2)], gain = 255 / level;
-    // A coherent dimming layer preserves the UI colors and geometry. Do not
-    // brighten arbitrary covered windows, colored overlays, or near-black UI.
+    // 均匀的变暗层会保留 UI 的颜色与几何结构。不要提亮任意的
+    // 被遮挡窗口、彩色覆盖层或接近黑色的 UI。
     if (gain < 1.06 || gain > 7.5 || levels.filter(value => Math.abs(value - level) < Math.max(7, level * .12)).length < 4) return null;
     return gain;
   }
@@ -185,8 +185,8 @@ export class GameRecognizer {
     const [r, g, b] = this.pixel(465, 30);
     if (blank < 3 || r < g * 1.25 || r < b * 1.1) { this.deckCache = null; return { open: false, rows: [] }; }
     const mask = this.textMask(256, 67, 221, 544, (r, g, b) => Math.max(r, g, b) < 115);
-    // Only reuse row identities when every label pixel is unchanged. Checkbox
-    // pixels are outside this mask and are always sampled from the new frame.
+    // 只有当所有标签像素都未变化时才复用行的身份。复选框像素
+    // 在此掩码之外，始终从新帧中采样。
     if (this.deckCache && mask.every((value, i) => value === this.deckCache.mask[i])) {
       return { open: true, range: this.deckCache.range,
         rows: this.deckCache.rows.map(row => ({ index: row.index, identified: true, obtained: this.deckFlag(row.y) }))
@@ -224,8 +224,8 @@ export class GameRecognizer {
     candidates.sort((a, b) => b.score - a.score);
     const best = candidates[0];
     if (best.matches < 3 || best.mismatches || best.score - candidates[1].score < 2) return { open: true, rows: [] };
-    // Hover/highlight colors can hide one row's black label. Its physical
-    // ordinal is still known when six or more labels establish a unique grid.
+    // 悬停/高亮颜色可能遮住某一行的黑色标签。当六个及以上标签
+    // 确立了唯一网格时，该行的物理序号仍然是已知的。
     const trustedGrid = best.matches >= 6 && best.score - candidates[1].score >= 3;
     const identified = row => row.id !== null || trustedGrid
       && Math.abs((row.y - observed[0].y) / 30 - Math.round((row.y - observed[0].y) / 30)) <= 1 / 30;
@@ -255,8 +255,8 @@ export class GameRecognizer {
     }
     const visible = retained || this.visible();
     if (!retained && visible) {
-      // A light fade can pass the white-pixel gate while already changing card
-      // colors. Normalize coherent fades too, with the same stricter UI check.
+      // 轻微的淡出可能在已经开始改变卡牌颜色的同时仍通过白像素
+      // 门限。也把均匀的淡出归一化，并采用同样更严格的 UI 检查。
       const gain = this.dimmingGain(), score = this.lastAnchorScore;
       if (gain) {
         this.brightenCore(image, gain, false);
@@ -305,8 +305,8 @@ export class GameRecognizer {
   read(image, context) {
     const observation = this.readCore(image);
     if (!observation.visible) return observation;
-    // Dimming correction is restricted to core ROIs. Deck flags still use
-    // original pixels; optional avatar evidence is unavailable behind a modal.
+    // 变暗校正仅限核心 ROI。牌库标记仍使用原始像素；
+    // 模态框后面的可选头像证据不可用。
     this.data = image.data;
     const deck = this.deck();
     let profile = null, character = null, helperIssue = null;
@@ -317,7 +317,7 @@ export class GameRecognizer {
       character = !observation.dimmed && !deck.open && observation.position && (knownId || context?.position === observation.position)
         ? this.character.read(this.data, observation.position, knownId, !!profile?.present) : null;
     } catch {
-      // Optional sprite evidence must never discard a valid core/deck reading.
+      // 可选的精灵图证据绝不能使有效的核心/牌库读数作废。
       helperIssue = "character";
       profile = character = null;
     }

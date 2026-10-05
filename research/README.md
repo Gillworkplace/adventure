@@ -1,22 +1,22 @@
-# VELA Value Table Generation Guide
+# VELA 价值表生成指南
 
 English | [한국어](README.ko.md)
 
 ## VELA v4.2 — COMPACT100 Hinge
 
-The current model uses frozen Hinge epoch 1, horizon 100, 2-step expectimax and actual remaining deck with DeckPotential beta=0.6. The minimal FULL100 generator (one C++ file and three headers), compression/training dependencies, commands and final result summaries are in [the v4.2 package](vela-v4.2/README.md). The original FULL100 table is not needed at runtime. The separate Hinge score predictor is connected in the application runtime; predictor training data is not part of this value-model research package.
+当前模型使用冻结的 Hinge epoch 1、horizon 100、2-step expectimax 以及实际剩余牌堆，DeckPotential beta=0.6。最小化的 FULL100 生成器（一个 C++ 文件和三个头文件）、压缩/训练依赖、命令与最终结果摘要都在 [v4.2 包](vela-v4.2/README.md) 中。运行时不需要原始 FULL100 表。独立的 Hinge 分数预测器在应用运行时中接入；预测器的训练数据不属于本价值模型研究包。
 
 ## VELA v4.1 — COMPACT48
 
-| Directory | Purpose |
+| 目录 | 用途 |
 |---|---|
-| `vela-v4.1/full48/` | One-shot cap-5, horizon-48 table generator |
-| `vela-v4.1/include/` | Required generator headers |
-| `vela-v4.1/compression/src/` | Shared time/hand structure fitting and quantized export |
+| `vela-v4.1/full48/` | 一次性 cap-5、horizon-48 表生成器 |
+| `vela-v4.1/include/` | 生成器所需的头文件 |
+| `vela-v4.1/compression/src/` | 共享的时间/手牌结构拟合与量化导出 |
 
-The selected output is `vela-v4.1/compression/models/quant_q6_k64_t12.bin` (37.68 MiB). FULL48 tables are required for generation, not runtime. The WASM build guide is in [native](../src/policies/vela/native/README.md).
+选定的输出是 `vela-v4.1/compression/models/quant_q6_k64_t12.bin`（37.68 MiB）。FULL48 表只在生成阶段需要，运行时不需要。WASM 构建指南见 [native](../src/policies/vela/native/README.md)。
 
-Run the following from the project root on Windows with MSYS2 UCRT64 g++, Python and NumPy. These commands perform full model generation; they were not rerun when packaging these sources. FULL48 tables alone occupy about 42.72 GiB, with additional space required for the final FP32 snapshot and compression intermediates.
+在 Windows 上使用 MSYS2 UCRT64 g++、Python 和 NumPy，从项目根目录运行以下命令。这些命令执行完整的模型生成；打包这些源码时并未重新运行它们。仅 FULL48 表就占用约 42.72 GiB，最终 FP32 快照和压缩中间结果还需要额外空间。
 
 ```powershell
 Push-Location research/vela-v4.1
@@ -33,49 +33,49 @@ try {
 }
 ```
 
-The original exporter also writes a T8 comparison candidate. The selected v4.1 file is T12. Linear algebra implementations can produce different bytes; regenerated models require value/action and policy-score validation.
+原始导出脚本还会写入一个 T8 对比候选。选定的 v4.1 文件是 T12。不同的线性代数实现可能产生不同的字节结果；重新生成的模型需要通过价值/动作以及策略分数的验证。
 
-See the [final research report](vela-v4.1/report-ko.md). In 90,000 independent paired games, the candidate scored 1876.5108 versus FULL48's 1878.0848; the original noninferiority gate was not met. This comparison is against FULL48, not the deployed H24+Four model.
+详见[最终研究报告](vela-v4.1/report-ko.md)。在 90,000 局独立配对对局中，候选模型得分为 1876.5108，FULL48 为 1878.0848；未达到原始的非劣性门槛。该对比针对的是 FULL48，而不是已部署的 H24+Four 模型。
 
-Sources: `adventure_vela/research/full_hand_dp/oneshot_full48_20260927/` (generator), `adventure_vela/research/value_compression/full48_shared_structure_v1_20260927/` (compression/report), and `adventure_vela/bak/legacy_20260926/S2_20260919_RDC/vendor/research/` (headers). Only the input path in `common.py` was adjusted for this layout. Report figure embeds and machine-local links are represented as text; original evidence remains in the source research directory.
+来源：`adventure_vela/research/full_hand_dp/oneshot_full48_20260927/`（生成器）、`adventure_vela/research/value_compression/full48_shared_structure_v1_20260927/`（压缩/报告）以及 `adventure_vela/bak/legacy_20260926/S2_20260919_RDC/vendor/research/`（头文件）。仅为适应当前目录布局调整了 `common.py` 中的输入路径。报告中的图片嵌入和本机链接以文字形式呈现；原始证据保留在源研究目录中。
 
-Reference decoded model SHA-256: `261ed5f731511119391278ae8800597ded67dbb882808e06ba2633ee58a292dc`.
+参考的解码后模型 SHA-256：`261ed5f731511119391278ae8800597ded67dbb882808e06ba2633ee58a292dc`。
 
 ---
 
-## VELA v1–v4 — Previous generation workflow
+## VELA v1–v4 — 上一代生成工作流
 
-To generate the VELA-v4 models from scratch, use the generators from **V1, V3, and V4**. Do not use the V2 generator for this workflow.
+要从零生成 VELA-v4 模型，请使用 **V1、V3 和 V4** 的生成器。不要在此工作流中使用 V2 生成器。
 
-## Required directories
+## 所需目录
 
-| Directory | Purpose |
+| 目录 | 用途 |
 |---|---|
-| `vela-v1/research/` | Compute DP4 values and generate `four-projected-24.bin` |
-| `vela-v3/research/` | Compute DP5 values and export the H24 checkpoint |
-| `vela-v4/research/` | Convert the H24 checkpoint to `h24.raw` |
+| `vela-v1/research/` | 计算 DP4 价值并生成 `four-projected-24.bin` |
+| `vela-v3/research/` | 计算 DP5 价值并导出 H24 检查点 |
+| `vela-v4/research/` | 将 H24 检查点转换为 `h24.raw` |
 
-Use all 16 files across these directories, including the headers and scripts.
+请使用这些目录下的全部 16 个文件，包括头文件和脚本。
 
-## Generation steps
+## 生成步骤
 
-1. **V1:** Compile `four-project.cpp` and run it with horizon argument `24`. The output is `results/four-projected-24.bin`.
-2. **V3:** Generate the DP5 tables with `build-model.sh`. Preserve the script's restart from the saved H2 values.
-3. **V3:** Use `export-checkpoint.cpp` to export horizon `24`. Decompress and concatenate the resulting `*_part1.qdelta.gz` and `*_part2.qdelta.gz`, in that order, to create `h24.qdelta`.
-4. **V4:** Run the executable compiled from `convert-checkpoint.cpp` with arguments `h24.qdelta h24.raw`.
+1. **V1：**编译 `four-project.cpp` 并以 horizon 参数 `24` 运行。输出为 `results/four-projected-24.bin`。
+2. **V3：**用 `build-model.sh` 生成 DP5 表。保留脚本从已保存的 H2 值重启的逻辑。
+3. **V3：**使用 `export-checkpoint.cpp` 导出 horizon `24`。将得到的 `*_part1.qdelta.gz` 和 `*_part2.qdelta.gz` 按此顺序解压并拼接，生成 `h24.qdelta`。
+4. **V4：**运行由 `convert-checkpoint.cpp` 编译出的可执行文件，参数为 `h24.qdelta h24.raw`。
 
-The required final value tables are **`four-projected-24.bin` and `h24.raw`**. Place both files in the model location expected by the existing VELA-v4 runtime. The runtime itself is not included in this directory.
+所需的最终价值表是 **`four-projected-24.bin` 和 `h24.raw`**。请将这两个文件放到现有 VELA-v4 运行时所期望的模型位置。运行时本身不包含在本目录中。
 
-## Command example
+## 命令示例
 
-Run the following in **Linux/WSL Bash**, starting from the repository root (the parent of `research/`). This example assumes a fresh output directory and the dependencies listed below are installed. It performs the full model computation; it is not a quick smoke test. The `4` passed to `build-model.sh` selects four threads.
+在 **Linux/WSL Bash** 中从仓库根目录（`research/` 的上一级目录）开始运行以下命令。本示例假定输出目录是全新的，且已安装下列依赖。它会执行完整的模型计算，并不是快速冒烟测试。传给 `build-model.sh` 的 `4` 表示选择四个线程。
 
 ```bash
 (
   set -euo pipefail
   cd research
 
-  # V1: DP4, horizon 24
+  # V1：DP4，horizon 24
   (
     cd vela-v1
     mkdir -p bin results
@@ -84,7 +84,7 @@ Run the following in **Linux/WSL Bash**, starting from the repository root (the 
     ./bin/four-project 24
   )
 
-  # V3: DP5 with the H2 restart, then export H24
+  # V3：带 H2 重启的 DP5，然后导出 H24
   (
     cd vela-v3
     bash research/build-model.sh 4
@@ -95,7 +95,7 @@ Run the following in **Linux/WSL Bash**, starting from the repository root (the 
       model/checkpoint_part2.qdelta.gz > model/h24.qdelta
   )
 
-  # V4: convert H24 and collect both runtime tables
+  # V4：转换 H24 并收集两份运行时表
   (
     cd vela-v4
     mkdir -p bin model
@@ -107,10 +107,10 @@ Run the following in **Linux/WSL Bash**, starting from the repository root (the 
 )
 ```
 
-Both final files will be in `research/vela-v4/model/`. V3 intermediates remain in `research/vela-v3/model/`. `build-model.sh` refuses to overwrite a non-empty `model/dp5/` directory; it is not a general interrupted-run recovery command.
+两个最终文件都会位于 `research/vela-v4/model/`。V3 的中间结果保留在 `research/vela-v3/model/`。`build-model.sh` 拒绝覆盖非空的 `model/dp5/` 目录；它不是通用的中断运行恢复命令。
 
-## Environment and verification status
+## 环境与验证状态
 
-C++17, OpenMP, Python 3, Bash, and gzip are required. The V3 exporter uses POSIX mmap and zlib, so this workflow targets Linux/WSL.
+需要 C++17、OpenMP、Python 3、Bash 和 gzip。V3 导出器使用了 POSIX mmap 和 zlib，因此本工作流面向 Linux/WSL。
 
-No compilation, model recomputation, or execution was performed while assembling this package. Hash equality between regenerated and existing models still requires separate verification.
+在整理本包的过程中没有进行任何编译、模型重算或运行。重新生成的模型与现有模型之间的哈希一致性仍需单独验证。

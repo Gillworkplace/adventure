@@ -1,4 +1,4 @@
-// Runtime dependencies: this module and model.json only.
+// 运行时依赖：仅此模块和 model.json。
 export function features(state,env){
  const {position:p,diceUsed:t,bonusRoll:b,hand,deckAvailable:deck}=state;
  if(!Number.isInteger(p)||p<1||p>env.boardSize||!Number.isInteger(t)||t<0||t>100)throw Error('Invalid position or diceUsed');

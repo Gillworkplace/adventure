@@ -1,7 +1,7 @@
 import { policyCards } from "../rules/index.js";
 import { chooseG3 } from "./g3/select.js";
 export { POLICY_VERSION } from "./versions.js";
-// Reused scratch view. Policy state never lives on the environment instance.
+// 复用的临时视图。策略状态绝不保存在环境实例上。
 export function createPolicy() {
   const view = {
     score: 1,

@@ -14,7 +14,7 @@ for i,h in enumerate(HANDS):
     for c in h: COUNTS[i,c]+=1
     terms=list(h)+[RANK[tuple(sorted((h[a],h[b])))]-1 for a in range(len(h)) for b in range(a+1,len(h))]
     SUB[i,:len(terms)]=terms
-# Sparse feature terms: first 22 are I_c, then 253 anchored I_cd.
+# 稀疏特征项：前 22 个是 I_c，随后是 253 个锚定的 I_cd。
 PAIR_FEATURE=np.zeros((80730,275),np.float32)
 for j in range(15):
     valid=SUB[:,j]>=0;PAIR_FEATURE[np.where(valid)[0],SUB[valid,j]]+=1

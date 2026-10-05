@@ -18,7 +18,7 @@ import { diagnostics } from "../platform/report.js";
 import { bindDiagnostics } from "../presentation/overlays/diagnostics.js";
 import { bindAssistBar } from "../presentation/overlays/assist.js";
 
-// Suppress only the browser menu; game-specific right-click handlers still run.
+// 仅屏蔽浏览器菜单；游戏专属的右键处理程序仍然会运行。
 document.addEventListener("contextmenu", event => event.preventDefault(), { capture: true });
 
 document.addEventListener("keydown", event => {

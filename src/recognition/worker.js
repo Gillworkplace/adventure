@@ -29,8 +29,8 @@ function align(rect) {
 self.onmessage = async ({ data }) => {
   if (data.type === "init") {
     try {
-      // The optional probe must not delay screen recognition or make startup
-      // fail when its small template file cannot be fetched.
+      // 可选探测不得拖延屏幕识别，也不得在其小型模板文件
+      // 无法获取时导致启动失败。
       const optional = new AbortController(), timeout = setTimeout(() => optional.abort(), 2500);
       const characters = fetch(new URL("../../public/recognition/characters.json", import.meta.url), { signal: optional.signal })
         .then(response => response.ok ? response.json() : null)

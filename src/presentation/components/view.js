@@ -48,8 +48,8 @@ export class GameView {
     }
   }
   render(session, result) {
-    // Keep prior values for display while assist is observing an action. The
-    // coordinator/voice still receive only the actual current result.
+    // 辅助模式正在观察一个动作期间，保留之前的数值用于显示。
+    // 协调器/语音仍然只接收实际的当前结果。
     const stateKey = JSON.stringify(session.state);
     if (session.mode !== "assist" || result.status === "disabled" ||
         this.assistDisplay?.stateKey !== stateKey || this.assistDisplay?.result.model !== result.model)

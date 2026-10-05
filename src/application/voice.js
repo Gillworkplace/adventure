@@ -8,8 +8,8 @@ import { cueCategory, normalizeCues } from "../speech/cues.js";
 export { DEFAULT_CUES, cueCategory } from "../speech/cues.js";
 
 const PREFERENCES = "adventure.voice.settings.v2";
-// Test-server ceiling: at most two normal capture intervals. Device QA may
-// revise this; slow recognition must not make arbitrarily old frames eligible.
+// 测试服务器上限：至多两个正常采集间隔。设备质量测试可以
+// 修订此值；缓慢的识别不能让过于陈旧的帧变得可用。
 const MAX_ACTION_FRAME_AGE_MS = 500;
 function readPreferences() { try { return JSON.parse(localStorage.getItem(PREFERENCES)) || {}; } catch { return {}; } }
 function settings(value) {
@@ -144,8 +144,8 @@ export class AssistVoice extends EventTarget {
   }
   freshAction(cue) {
     const frame = this.assist.frame, now = performance.now();
-    // Use the normal reader cadence plus this frame's measured processing time,
-    // rather than accepting an arbitrarily old result received recently.
+    // 使用正常的读取节奏加上本帧实测的处理时间，
+    // 而不是接受最近才收到但内容过旧的结果。
     return this.session.mode === "assist" && this.assist.status !== "paused" && !!this.assist.stream &&
       this.assist.reading.ready && this.session.canRecommend && !this.assist.reader?.busy &&
       cue.revision === this.session.revision && cue.requestId === this.coordinator.requestId &&
@@ -155,8 +155,8 @@ export class AssistVoice extends EventTarget {
       now >= frame.receivedAt && now - frame.captureStartedAt <= Math.min(MAX_ACTION_FRAME_AGE_MS, 250 + frame.latencyMs);
   }
   requestActionFrame(cue) {
-    // A persistently slow reader should keep its normal cadence, rather than
-    // being driven continuously by failed speech confirmation attempts.
+    // 持续缓慢的读取器应保持正常节奏，而不是被一次次失败的
+    // 语音确认尝试持续驱动。
     if (this.assist.frame?.latencyMs > MAX_ACTION_FRAME_AGE_MS) return;
     this.assist.requestFrame(cue.after);
   }
@@ -165,7 +165,7 @@ export class AssistVoice extends EventTarget {
     if (!cue || cue.key === this.delivered) return;
     if (cue.key.startsWith("action:") && !this.freshAction(cue)) {
       this.requestActionFrame(cue);
-      // Keep acknowledgement pending until a recommendation actually starts.
+      // 让确认语音保持待定，直到推荐真正开始。
       if (this.deckVerifying && this.isCueEnabled("deck-ready")) {
         const acknowledgement = { key: "deck-ready:" + this.assist.epoch + ":" + JSON.stringify(this.session.state),
           clip: "deck-ready", delay: 100 };
@@ -213,9 +213,9 @@ export class AssistVoice extends EventTarget {
       }
     }
     const cue = this.cue();
-    // A queued/buffering acknowledgement can be replaced by a recommendation.
-    // Once audible, finish the whole acknowledgement; recompute the latest
-    // cue on completion instead of retaining a potentially obsolete action.
+    // 已排队/仍在缓冲的确认语音可以被推荐取代。
+    // 一旦开始发声，就把整段确认播完；播放完成时重新计算最新
+    // 提示，而不是保留可能已过时的动作。
     if (this.playback && this.cueStarted && this.desired?.clip === "deck-ready" &&
         this.session.mode === "assist" && this.assist.stream &&
         this.desired.key.startsWith("deck-ready:" + this.assist.epoch + ":") &&
@@ -284,9 +284,9 @@ export class AssistVoice extends EventTarget {
       await this.audio.play(this.pack.url(cue.clip), { onStarted: () => {
         if (this.playback !== controller || controller.signal.aborted) return;
         if (action && !this.freshAction(cue)) { this.stop(); this.sync(); return; }
-        // Once the popup notice is audible, repeat the recommendation when
-        // the game is validated again, even if this notice is interrupted.
-        // A notice cancelled before playback must not reset action deduplication.
+        // 弹窗通知一旦开始发声，即使之后被打断，也要在游戏重新
+        // 验证通过时重复播放推荐。播放前被取消的通知
+        // 不能重置动作去重。
         if (cue.clip === "covered" && this.delivered?.startsWith("action:")) this.delivered = null;
         if (action) this.deckVerifying = false;
         this.cueStarted = true;

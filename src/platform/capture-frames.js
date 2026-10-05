@@ -18,8 +18,8 @@ export class CaptureFrames {
         if (this.stopped) { frame?.close(); break; }
         const now = performance.now(), timestamp = frame.timestamp / 1000;
         if (!Number.isFinite(timestamp) || timestamp <= (this.timestamp ?? -Infinity)) { frame.close(); continue; }
-        // Capture timestamps advance independently of video rendering. Keep
-        // the smallest clock offset so a delayed delivery cannot become fresh.
+        // 采集时间戳与视频渲染各自独立推进。保留最小的时钟偏移，
+        // 这样延迟送达的帧不会变成新帧。
         this.offset = Math.min(this.offset ?? Infinity, now - timestamp);
         this.timestamp = timestamp;
         this.frame?.close(); this.frame = frame;

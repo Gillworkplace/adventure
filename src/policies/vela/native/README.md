@@ -1,10 +1,10 @@
-# VELA v4.2 WASM 빌드
+# VELA v4.2 WASM 构建
 
-동결된 COMPACT100 Hinge `hinge_k256_e1.bin`의 브라우저 이식 소스입니다. 연구 원본의 계산 순서와 동점 선택을 유지하며 `OPT=4228`, `base`, `gamma=0`, 2-step expectimax, 실제 비복원 덱과 DeckPotential β=0.6을 사용합니다. H24/Four 보정이나 추가 정책 튜닝은 없습니다.
+这是冻结的 COMPACT100 Hinge `hinge_k256_e1.bin` 的浏览器移植源码。保持研究原始版本的计算顺序与平局选择规则，使用 `OPT=4228`、`base`、`gamma=0`、2-step expectimax、实际不放回的牌堆以及 DeckPotential β=0.6。没有 H24/Four 校正，也没有额外的策略调优。
 
-## 빌드
+## 构建
 
-Python 3와 Emscripten **4.0.23**을 준비합니다. SDK는 `.tools/emsdk-main/`에 설치합니다.
+准备 Python 3 和 Emscripten **4.0.23**。SDK 安装在 `.tools/emsdk-main/`。
 
 ```powershell
 git clone https://github.com/emscripten-core/emsdk.git .tools/emsdk-main
@@ -12,25 +12,25 @@ python .tools/emsdk-main/emsdk.py install 4.0.23
 python .tools/emsdk-main/emsdk.py activate 4.0.23
 ```
 
-SDK가 준비됐다면 설치를 생략합니다. Release의 `model.bin.gz`를 압축을 풀지 않고 `public/models/vela-v4.2/`에 넣은 뒤 프로젝트 루트에서 실행합니다.
+如果 SDK 已就绪，可跳过安装。将 Release 中的 `model.bin.gz` 不解压直接放入 `public/models/vela-v4.2/`，然后在项目根目录执行。
 
 ```powershell
 python scripts/vela/build.py
 ```
 
-빌드는 `vela.mjs`, `vela.wasm`을 생성하고 manifest의 실행 파일 해시를 갱신합니다. C++20, `-ffp-contract=off`, 최대 WASM 메모리 512 MiB, 스택 2 MiB를 사용합니다. fast-math는 사용하지 않습니다.
+构建会生成 `vela.mjs`、`vela.wasm`，并更新 manifest 中的可执行文件哈希。使用 C++20、`-ffp-contract=off`、最大 WASM 内存 512 MiB、栈 2 MiB。不使用 fast-math。
 
-## 모델·상태 계약
+## 模型与状态契约
 
-- 모델: 91,179,876 bytes, SHA-256 `3b25cacd47d1de76ef0a6d6ba60d0cf3e4ce6fcc946c3bfa305cdd3a04a879e9`.
-- gzip 배포 파일: 68,320,365 bytes. FULL100 원본은 런타임에 필요하지 않습니다.
-- 입력: `[position, paidDiceUsed, bonusRoll, handCount, h0, h1, h2, h3, h4, deckMask]`. 카드 ID는 물리 ID 1~30, 덱은 실제 잔여 30비트 마스크입니다.
-- 반환: `0=주사위`, `1..handCount=입력 손패 슬롯`. 지평 제한은 원래 planner가 담당합니다.
-- `_values_ptr()`의 값은 행동 평가값이며 최종 점수 예측으로 표시하지 않습니다.
-- manifest의 `scorePredictor:true`로 `public/models/vela-v4.2/predictor.json`을 읽습니다. Hinge 전용 예측기의 모델 SHA를 확인한 뒤 선택된 행동 Q로 점수를 예측합니다. 예측기를 읽지 못하거나 호환되지 않으면 추천은 유지하고 점수 예측만 생략합니다.
+- 模型：91,179,876 bytes，SHA-256 `3b25cacd47d1de76ef0a6d6ba60d0cf3e4ce6fcc946c3bfa305cdd3a04a879e9`。
+- gzip 部署文件：68,320,365 bytes。运行时不需要原始 FULL100。
+- 输入：`[position, paidDiceUsed, bonusRoll, handCount, h0, h1, h2, h3, h4, deckMask]`。卡牌 ID 为物理 ID 1~30，牌堆为实际剩余的 30 位掩码。
+- 返回：`0=骰子`，`1..handCount=输入的手牌槽位`。horizon 限制由原有的 planner 承担。
+- `_values_ptr()` 的值是动作评估值，不应展示为最终分数预测。
+- 通过 manifest 的 `scorePredictor:true` 读取 `public/models/vela-v4.2/predictor.json`。先核对 Hinge 专用预测器的模型 SHA，再用所选动作的 Q 预测分数。如果预测器无法读取或不兼容，则保留推荐动作，仅省略分数预测。
 
-## 출처·검증
+## 出处与验证
 
-연구 원본 `adventure_vela/research/value_compression/rethink100_20260929/src/runtime/`을 메모리 입력 및 WASM 환경에 맞춰 이식한 기존 검증 소스를 승격했습니다. 압축·planner의 산술은 변경하지 않았습니다. 가치 모델 생성 명령과 연구 결과 요약은 [연구 패키지](../../../../research/vela-v4.2/README.md)에 있습니다.
+本目录由既有验证源码提升而来，该源码将研究原始的 `adventure_vela/research/value_compression/rethink100_20260929/src/runtime/` 适配到内存输入与 WASM 环境。未更改压缩与 planner 的运算。价值模型生成命令和研究结果摘要见[研究包](../../../../research/vela-v4.2/README.md)。
 
-기존 native 대비 WASM 검증은 5,460상태에서 행동 불일치 0, 최대 Q 오차 0입니다. 승격한 실행 파일도 별도로 다시 검증합니다. 관측 WASM heap은 319,225,856 bytes이며 브라우저 전체 메모리나 모든 상태의 최대 사용량은 아닙니다.
+对比既有 native 的 WASM 验证在 5,460 个状态上动作不一致数为 0，最大 Q 误差为 0。提升后的可执行文件也会另行重新验证。观测到的 WASM heap 为 319,225,856 bytes，既不是浏览器整体内存，也不是所有状态下的最大用量。

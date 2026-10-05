@@ -56,7 +56,7 @@ export const cards = Object.freeze([
 ]);
 export const stageStarts = new Uint16Array(STAGE_COUNT + 2);
 for (const t of tiles) if (!stageStarts[t.stage]) stageStarts[t.stage] = t.id;
-// Policy-only positional view preserves baseline null arithmetic, without UI data.
+// 仅供策略使用的位置视图，保留基线的 null 算术，不含 UI 数据。
 export const policyStage = Object.freeze(
   tiles.map((t) =>
     Object.freeze([t.id, t.stage, t.ordinal, null, t.jump, t.event]),

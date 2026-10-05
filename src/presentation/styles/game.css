@@ -822,7 +822,7 @@ dialog input[type="text"] {
   }
 }
 
-/* Logical layout refinements against the fixed reference viewport. */
+/* 针对固定参考视口所做的逻辑布局微调。 */
 .toolbar {
   padding-right: 3px;
 }

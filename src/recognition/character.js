@@ -1,7 +1,7 @@
 import { tileLayout } from "../content/board-layout.js";
 
-// Sparse color samples from the existing game sprites. This reads one tile;
-// it does not track the screen or require every phase of an animation.
+// 取自现有游戏精灵图的稀疏颜色采样。它只读取一个格子；
+// 不追踪屏幕，也不要求动画的每个阶段。
 export class CharacterProbe {
   constructor(templates = []) { this.templates = templates; }
   read(data, position, knownId, strict = false) {
@@ -15,8 +15,8 @@ export class CharacterProbe {
     return this.readAt(data, 58, 88, this.profileId);
   }
   readAt(data, left, top, knownId, strict = false) {
-    // A profile-confirmed identity tolerates the small color change seen in
-    // idle animation. Unknown identities keep the stricter threshold.
+    // 经资料页确认过的身份可以容忍待机动画中出现的轻微颜色变化。
+    // 未知身份则保持更严格的阈值。
     const presence = strict ? .10 : .08;
     let best = Infinity, id = null;
     const check = (template, limit = Infinity) => {
@@ -26,8 +26,8 @@ export class CharacterProbe {
         for (const [x, y, r, g, b] of template.points) {
           const at = ((top + y + dy) * 1234 + left + x + dx) * 4;
           error += Math.abs(data[at] - r) + Math.abs(data[at + 1] - g) + Math.abs(data[at + 2] - b);
-          // Error can only increase. Stop testing an alternate sprite as soon
-          // as it cannot meet the presence threshold, without losing matches.
+          // 误差只会增大。某个候选精灵图一旦已不可能满足在场阈值，
+          // 就立即停止对它的测试，且不会因此丢失匹配。
           if (error > maximumError) break;
         }
         if (error > maximumError) continue;
@@ -37,8 +37,8 @@ export class CharacterProbe {
     };
     const preferred = this.templates.find(template => template.id === (knownId ?? this.preferred)) ?? this.templates[0];
     if (preferred) check(preferred);
-    // The game allows avatar changes during play. A missing known sprite must
-    // check every other playable avatar too, rather than look like movement.
+    // 游戏允许在游玩过程中更换头像。已知精灵图缺失时，必须把其他
+    // 所有可玩头像也检查一遍，而不是让它看起来像一次移动。
     if (best > presence) for (const template of this.templates) if (template !== preferred) {
       check(template, .08);
       if (best <= .08) break;

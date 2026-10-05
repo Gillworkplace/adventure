@@ -1,4 +1,4 @@
-// [id, stageId, stagePosition, jump, event]. See provenance.json.
+// [id, stageId, stagePosition, jump, event]。参见 provenance.json。
 export const boardRows = [
   [1, 1, 1, null, null],
   [2, 1, 2, null, null],

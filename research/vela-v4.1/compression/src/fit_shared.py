@@ -9,7 +9,7 @@ def save(name,value):np.save(ROOT/('data/'+prefix+name),value)
 rng=np.random.default_rng(27092701);start=time.perf_counter();base,tiers=read_tables()
 t=np.load(ROOT/'data/time_basis.npy')[:,:q];a=np.load(ROOT/f'data/low_q{q}.npy')
 def low(rows):return np.einsum('iq,icq->ic',t[np.asarray(rows)//X],a[np.asarray(rows)%X],optimize=True)
-# All hand multisets are represented, including repeated copies. No class-number ordering assumption.
+# 所有三张以上手牌多重集均有表示，含重复牌。不依赖类编号的排序假设。
 rows=np.array([r*X+b*P+p for r in range(49) for b in range(2) for p in rng.choice(np.arange(1,P),8,replace=False)])
 v=values(tiers,rows,np.arange(80730));v-=low(rows)@PAIR_FEATURE.T
 v[:,:276]=0
@@ -29,7 +29,7 @@ for lo in range(0,49*X,256):
     coeff[rr]=res@pinv.T
     if lo%32768==0:print('fit rows',lo,'/',49*X,'seconds',time.perf_counter()-start,flush=True)
 save('g_coeff_direct.npy',coeff.reshape(49,X,64))
-# Shared time basis for high residual; retain position and bonus resolution.
+# 用共享时间基拟合高残差部分；保留位置与 bonus 状态的分辨率。
 mat=coeff.reshape(49,-1);ev,tg=np.linalg.eigh(mat.astype(np.float64)@mat.astype(np.float64).T);ix=np.argsort(ev)[::-1];tg=tg[:,ix]
 save('g_time.npy',tg.astype(np.float32))
 report={'time_eigenvalues':ev[ix].tolist(),'time_ranks':{},'seconds':time.perf_counter()-start}

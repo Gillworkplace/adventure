@@ -16,7 +16,7 @@ export class VoiceAudio {
       this.source = this.ctx.createMediaElementSource(this.element);
       this.gainNode = this.ctx.createGain();
 
-      // Transparent peak limiter preventing distortion when boosted > 100%
+      // 透明峰值限制器，防止增益超过 100% 时出现失真
       this.limiter = this.ctx.createDynamicsCompressor();
       this.limiter.threshold.setValueAtTime(-1.0, this.ctx.currentTime);
       this.limiter.knee.setValueAtTime(3.0, this.ctx.currentTime);
@@ -50,10 +50,10 @@ export class VoiceAudio {
   }
   volume(value) {
     const raw = Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0.7;
-    // Logarithmic perceptual curve for fine low-volume control, up to 150% boost at top slider
-    // 0.0 -> 0.0 (mute)
-    // 0.7 -> 1.0 (exact native 100% volume at 70% slider position)
-    // 1.0 -> 1.5 (+3.5dB safe boost with limiter at 100% slider position)
+    // 对数感知曲线，用于精细的低音量控制，滑块最高处可获得 150% 增益
+    // 0.0 -> 0.0（静音）
+    // 0.7 -> 1.0（滑块 70% 位置对应原生 100% 音量）
+    // 1.0 -> 1.5（滑块 100% 位置配合限制器实现 +3.5dB 安全增益）
     const gain = raw <= 0.7 ? (raw / 0.7) ** 2 : 1.0 + ((raw - 0.7) / 0.3) * 0.5;
 
     if (this.gainNode && this.ctx) {

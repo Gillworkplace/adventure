@@ -32,7 +32,7 @@ export function showFeedback(downloaded = false) {
     link.href = "https://tally.so/r/ja1EbR";
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    // Keep navigation in the button click so browsers retain user activation.
+    // 把导航放在按钮点击内执行，以便浏览器保留用户激活状态。
     node.append(link);
     link.click();
     link.remove();

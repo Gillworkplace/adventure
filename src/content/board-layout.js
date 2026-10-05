@@ -1,4 +1,4 @@
-// [event sprite, grid position]; contains no transition logic.
+// [事件精灵图编号, 网格位置]；不包含任何转移逻辑。
 export const tileLayout = [
   [null, 51],
   [null, 52],

@@ -216,9 +216,9 @@ export class Coordinator extends EventTarget {
           new URLSearchParams(location.search).get("noEarlyStop") === "1",
       }),
       state = this.session.state;
-    // A temporary occlusion changes readiness, not the game state. Reuse only
-    // the last completed assist result with exactly the same state/settings
-    // and model instance. Explicit recalculation still starts a fresh request.
+    // 临时遮挡改变的是就绪状态，而不是游戏状态。只在状态/设置
+    // 与模型实例完全相同时，才复用上一次完成的辅助结果。
+    // 显式重新计算仍会发起全新的请求。
     if (reuse && this.session.mode === "assist" && this.completed?.backend === this.calculationBackend &&
         this.completed.key === JSON.stringify([state, this.settings])) {
       diagnostics.record("calculation.reuse", { requestId: id, revision, snapshot: state });

@@ -1,5 +1,5 @@
-// A single bounded capture can be in flight. It does not wait for the full
-// recognizer, and it never builds a backlog of shared-screen bitmaps.
+// 同一时刻最多只有一个有界的采集在执行。它不会等待完整的
+// 识别器，也绝不会积压一堆共享屏幕的位图。
 export class FrameRecorder {
   constructor(video, receive, region, sourceFrame = () => null, capture = () => createImageBitmap(video), frameTime = () => performance.now()) {
     this.video = video; this.receive = receive; this.region = region; this.sourceFrame = sourceFrame; this.id = 0;

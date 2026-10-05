@@ -7,7 +7,7 @@ import {
   pop,
   select,
 } from "./tables.js";
-// Evolved from the user's compact kernel. No policy, application mode or UI state.
+// 由用户的紧凑内核演化而来。不含策略、应用模式或 UI 状态。
 export class Board {
   constructor(random = Math.random) {
     this.random = random;

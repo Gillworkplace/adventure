@@ -1,4 +1,4 @@
-// Sparse adjoint through the current student's max decisions. No teacher-fixed subtree.
+// 稀疏伴随梯度沿当前学生模型自身的 max 决策回传，不使用教师固定的子树。
 struct Grad {
  Compact&M;FP<Compact>&pi;std::vector<double> g;std::vector<uint32_t> touched;std::vector<unsigned char> seen;std::unordered_map<uint64_t,int,KeyHash> choices;
  Grad(Compact&m,FP<Compact>&p):M(m),pi(p),g(m.A.size()+m.GA.size()),seen(g.size()){}

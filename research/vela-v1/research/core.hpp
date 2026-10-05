@@ -35,8 +35,8 @@ inline void step(State &s,int a,RNG &rng){
  if((code&4096)&&s.n<5){int bit=nthbit(s.deck,rng.pick(__builtin_popcount(s.deck)));s.h[s.n++]=bit+1;s.deck&=~(1u<<bit);if(!s.deck)s.deck=0x3fffffff;}
 }
 struct Params {
- // dice shadow price, draw value, fixed intercept/slope, negative reserve,
- // multiplier intercept/slope, stage reserve, full-hand discount, potential scale, horizon
+ // 骰子影子价格、抽牌价值、固定项截距/斜率、负保留值、
+ // 乘数项截距/斜率、阶段保留值、满手折扣、潜力缩放系数、horizon
  std::vector<double> x={16,24,16,0.4,10,-3,6,27,3,0.8,8};
  void read(const char*path){std::ifstream f(path);for(auto &v:x)f>>v;}
  void write(const char*path)const{std::ofstream f(path);for(auto v:x)f<<v<<' ';f<<'\n';}
@@ -74,7 +74,7 @@ struct Policy {
     }
     val-=base+pr+par.x[0];
    }
-   // No usable inventory after the terminal transition. Endgame placeholder.
+   // 终局转移之后不再有可用手牌。此处为残局占位处理。
    q[a]=val;
    if(val>best){best=val;ans=a;}
   }

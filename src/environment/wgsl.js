@@ -1,4 +1,4 @@
-// Environment backend; validated against the CPU transition contract.
+// 环境后端；已对照 CPU 转移契约验证。
 export const environmentShader = `fn next_rand(rng: ptr<function, u32>) -> u32 {
   var t = (*rng) + 0x6D2B79F5u;
   (*rng) = t;

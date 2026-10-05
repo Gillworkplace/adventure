@@ -1,4 +1,4 @@
-"""Common teacher queries; separate hand fit, time truncation and quantization."""
+"""公共教师查询；分别用于手牌拟合、时间截断和量化。"""
 import os
 os.environ['OPENBLAS_NUM_THREADS']='4'
 from pathlib import Path

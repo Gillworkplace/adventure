@@ -1,25 +1,25 @@
 # VELA v4.2 — COMPACT100 Hinge
 
-배포 모델은 동결된 `hinge_k256_e1.bin`입니다. SHA-256은 `3b25cacd47d1de76ef0a6d6ba60d0cf3e4ce6fcc946c3bfa305cdd3a04a879e9`, 크기는 91,179,876 bytes(86.96 MiB)입니다. 정책은 `base`, `gamma=0`, `OPT=4228`, 2-step expectimax와 실제 잔여 덱, DeckPotential β=0.6입니다. H24/Four 보정을 추가하지 않습니다.
+部署模型是冻结的 `hinge_k256_e1.bin`。SHA-256 为 `3b25cacd47d1de76ef0a6d6ba60d0cf3e4ce6fcc946c3bfa305cdd3a04a879e9`，大小为 91,179,876 bytes（86.96 MiB）。策略为 `base`、`gamma=0`、`OPT=4228`、2-step expectimax 与实际剩余牌堆，DeckPotential β=0.6。不添加 H24/Four 校正。
 
-이 패키지는 가치 모델 생성·압축·Hinge 학습에 필요한 코드, 실행 명령과 최종 결과 요약을 포함합니다. 최종 점수 예측기 학습 자료는 포함하지 않습니다. 배포 파일 설치와 WASM 빌드는 [실행 소스 안내](../../src/policies/vela/native/README.md)를 참고하세요.
+本包包含价值模型生成、压缩和 Hinge 训练所需的代码、执行命令以及最终结果摘要。不包含最终分数预测器的训练资料。部署文件的安装与 WASM 构建请参阅[运行源码说明](../../src/policies/vela/native/README.md)。
 
-## 포함 범위
+## 包含范围
 
-| 경로 | 역할 |
+| 路径 | 作用 |
 |---|---|
-| `full100/solve-hands-full100.cpp` | cap5, horizon100 가치 테이블 생성기 |
-| `include/{value-model,core,tables}.hpp` | 생성기의 의존 헤더 3개 |
-| `compression/build_models.py`, `compression/src/common.py` | FULL100 공유 손패·시간 구조 학습 및 int16 내보내기 |
-| `compression/quant_balance.py` | 함수 보존 채널 배율 후 양자화 |
-| `compression/collect_q.py`, `refine_actions.py`, `src/action_train/` | 고정 teacher/student 행동 표본과 Hinge 학습·선별 |
-| `compression/include/` | Hinge 학습과 FULL100 teacher의 의존 헤더 |
+| `full100/solve-hands-full100.cpp` | cap5、horizon100 价值表生成器 |
+| `include/{value-model,core,tables}.hpp` | 生成器依赖的 3 个头文件 |
+| `compression/build_models.py`、`compression/src/common.py` | FULL100 共享手牌/时间结构学习及 int16 导出 |
+| `compression/quant_balance.py` | 函数保持通道倍率缩放后再量化 |
+| `compression/collect_q.py`、`refine_actions.py`、`src/action_train/` | 固定 teacher/student 动作样本与 Hinge 训练、筛选 |
+| `compression/include/` | Hinge 训练与 FULL100 teacher 的依赖头文件 |
 
-FULL100 생성에 필요한 소스는 위의 **4개 파일뿐**입니다. 압축·Hinge 학습에는 별도의 의존 파일이 필요합니다. 원본 FULL100, 학습 중간 데이터, 다른 후보 모델, 실행 파일은 포함하지 않습니다. 생성 산출물은 Git 제외 대상입니다.
+生成 FULL100 所需的源码**仅限上述 4 个文件**。压缩和 Hinge 训练需要另外的依赖文件。不包含原始 FULL100、训练中间数据、其他候选模型和可执行文件。生成产物属于 Git 排除对象。
 
-## FULL100 생성
+## FULL100 生成
 
-Windows MSYS2 UCRT64 g++(C++17/OpenMP), Python 3 및 NumPy를 준비합니다. 프로젝트 루트에서 실행합니다.
+准备 Windows MSYS2 UCRT64 g++（C++17/OpenMP）、Python 3 与 NumPy。在项目根目录执行。
 
 ```powershell
 New-Item -ItemType Directory -Force research/vela-v4.2/bin | Out-Null
@@ -27,11 +27,11 @@ g++ -std=c++17 -O3 -march=native -fopenmp -I research/vela-v4.2/include research
 ./research/vela-v4.2/bin/solve-hands.exe 5 100 research/vela-v4.2/full100/model/full100 6
 ```
 
-이는 전체 생성 명령입니다. cap5, r=0부터 100까지 생성하며 FULL48에서 재개하지 않습니다. tier 파일만 약 88 GiB가 필요하고 pair 투영·압축 중간 결과에 추가 공간이 필요합니다. 전체 생성은 이번 배포 준비에서 다시 실행하지 않았습니다. `ready.json`은 완료 레이어를 기록합니다. 일반 재실행은 출력을 덮어쓰므로 새 출력 폴더를 사용하세요.
+这是完整的生成命令。生成 cap5、r=0 到 100，不会从 FULL48 恢复续算。仅 tier 文件就需要约 88 GiB，pair 投影和压缩中间结果还需要额外空间。本次发布准备时没有重新运行完整生成。`ready.json` 记录已完成的层。普通重跑会覆盖输出，请使用新的输出文件夹。
 
-## 선택된 Hinge 생성 경로
+## 选定 Hinge 的生成路径
 
-아래는 고비용 연구 재현 명령입니다. 실행용 모델을 다운로드해서 사용하는 데 필요하지 않습니다. Windows에서 `C:/msys64/ucrt64/bin`을 PATH에 추가한 뒤 프로젝트 루트에서 실행합니다.
+以下是高成本的研究复现命令，下载并使用运行时模型并不需要它们。在 Windows 上将 `C:/msys64/ucrt64/bin` 加入 PATH 后，从项目根目录执行。
 
 ```powershell
 g++ -std=c++20 -O3 -ffp-contract=off research/vela-v4.2/compression/src/action_train/study.cpp -o research/vela-v4.2/compression/src/action_train/study.exe
@@ -46,29 +46,29 @@ try {
 } finally { Pop-Location }
 ```
 
-K192 함께 계산하는 것은 원본 K256 학습의 난수 소비·공유 구조를 유지하기 위해서입니다. `make_diagnostic_queries.py`는 원본과 같은 고정 20,000개 가치 진단 표본만 생성합니다.
+同时计算 K192 是为了保持原始 K256 训练的随机数消耗与共享结构。`make_diagnostic_queries.py` 只生成与原始流程相同的固定 20,000 个价值诊断样本。
 
-Hinge는 고정 teacher/student 표본을 혼합해 3 epoch를 학습하고, 별도 validation의 teacher Q2 regret으로 epoch를 고릅니다. 선택된 파일은 `models/hinge_k256_e1.bin`입니다. 원본은 512 train/128 validation seed를 사용하며 두 행동 정책의 같은 seed 궤적을 독립 게임으로 중복 계산하지 않습니다. 최종 100,000게임 은행은 모델 선택 후 동결했습니다.
+Hinge 混合固定的 teacher/student 样本训练 3 个 epoch，并以单独 validation 的 teacher Q2 regret 选择 epoch。选定的文件是 `models/hinge_k256_e1.bin`。原始流程使用 512 个 train seed/128 个 validation seed，并且不会把两个动作策略在相同 seed 下的轨迹重复计为独立对局。最终的 100,000 局对局库在模型选定后冻结。
 
-BLAS·컴파일러·부동소수점 차이로 재생성 결과가 달라질 수 있습니다. 소스 패키지는 바이트 동일 재생성을 보증하지 않습니다. 모델 SHA와 native/WASM 가치·행동, 게임 점수 검증 후에만 재생성 모델을 사용할 수 있습니다.
+BLAS、编译器和浮点运算的差异可能使重新生成的结果不同。源码包不保证逐字节一致的复现。只有在核对模型 SHA 并通过 native/WASM 的价值/动作以及游戏分数验证之后，才能使用重新生成的模型。
 
-## 기존 평가 결과
+## 现有评估结果
 
-이번 패키징에서 게임 평가를 다시 실행하지 않았습니다.
+本次打包时没有重新运行对局评估。
 
-| 정책 | 게임 수 | 평균 점수 | 평균의 95% CI |
+| 策略 | 对局数 | 平均分 | 平均分的 95% CI |
 |---|---:|---:|---|
-| 선택된 Hinge / VELA v4.2 | 100,000 | 1878.13502 | [1876.88763, 1879.38241] |
-| 운영 VELA v4.1 / COMPACT48 | 1,000,000 | 1876.371112 | [1875.97794, 1876.76429] |
-| 원본 FULL100 | 100,000 | 1878.03718 | [1876.79073, 1879.28363] |
+| 选定的 Hinge / VELA v4.2 | 100,000 | 1878.13502 | [1876.88763, 1879.38241] |
+| 已部署 VELA v4.1 / COMPACT48 | 1,000,000 | 1876.371112 | [1875.97794, 1876.76429] |
+| 原始 FULL100 | 100,000 | 1878.03718 | [1876.79073, 1879.28363] |
 
-v4.2와 v4.1은 독립 표본입니다. 기존 결과를 이용한 독립 두 표본 평균 차이는 **+1.76391점**, 95% CI **[+0.45600, +3.07182]**이며 통계적으로 양수입니다. 서로 다른 평가 시점·실행기를 사용한 비교이고 대응 seed 재평가는 아닙니다.
+v4.2 与 v4.1 是独立样本。基于现有结果计算的独立两样本均值差为 **+1.76391 分**，95% CI **[+0.45600, +3.07182]**，在统计上显著为正。这是使用不同评估时间点和执行器的比较，并非配对 seed 的重新评估。
 
-원본 FULL100과의 대응 차이는 +0.09784점, 95% CI [-1.04640, +1.24208]이므로 개선은 확인되지 않았습니다. 원본 FULL48과의 독립 비교는 +0.03860점, 95% CI [-1.72693, +1.80413]입니다. 0.1% 비열등성 기준은 통과했으나 FULL48보다 높은 점수라는 별도 연구 목표 달성은 확인되지 않았습니다.
+与原始 FULL100 的配对差值为 +0.09784 分，95% CI [-1.04640, +1.24208]，因此未能确认有改进。与原始 FULL48 的独立比较为 +0.03860 分，95% CI [-1.72693, +1.80413]。通过了 0.1% 非劣性标准，但“得分高于 FULL48”这一单独研究目标是否达成未得到确认。
 
-기존 웹 이식은 5,460상태에서 native와 행동 불일치 0, 최대 Q 오차 0입니다. 관측 WASM heap은 약 304.44 MiB이며 전체 브라우저 메모리가 아닙니다. 실기기 지연·최대 메모리는 기기별로 추가 확인해야 합니다.
+现有的 Web 移植在 5,460 个状态上与 native 的动作不一致数为 0，最大 Q 误差为 0。观测到的 WASM heap 约为 304.44 MiB，并非整个浏览器的内存占用。实机的延迟和最大内存需要按设备另行确认。
 
-## 원본 출처
+## 原始出处
 
 - `adventure_vela/research/full_hand_dp/oneshot_full100_20260928/`
 - `adventure_vela/research/value_compression/rethink100_20260929/`
@@ -76,4 +76,4 @@ v4.2와 v4.1은 독립 표본입니다. 기존 결과를 이용한 독립 두 �
 - `adventure_vela/bak/legacy_20260926/S2_20260919_RDC/vendor/research/`
 - `adventure_vela/research/web_integration/compact100_hinge_20261003/`
 
-폴더 구조에 맞춘 include·입력 경로만 변경했습니다. 알고리즘·학습 하이퍼파라미터·seed는 유지합니다.
+仅为适应当前文件夹结构调整了 include 和输入路径。算法、训练超参数和 seed 保持不变。

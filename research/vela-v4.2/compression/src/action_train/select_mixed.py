@@ -1,8 +1,8 @@
-"""Select a checkpoint on fixed teacher/student roots with episode clustering.
+"""在固定的教师/学生根节点上按 episode 聚类选择 checkpoint。
 
-Input JSON: {"seed_base":3520100000,"epochs":[{"epoch":0,"model":"...",
-"teacher":"...validation.csv","student":"...validation.csv"}, ...]}.
-This uses diagnostic teacher Q regret, not whole-game scores or their CI.
+输入 JSON：{"seed_base":3520100000,"epochs":[{"epoch":0,"model":"...",
+"teacher":"...validation.csv","student":"...validation.csv"}, ...]}。
+这里使用的是诊断性教师 Q regret，而不是整局得分或其置信区间。
 """
 from pathlib import Path
 import argparse, csv, hashlib, json, math

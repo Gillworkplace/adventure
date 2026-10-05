@@ -13,10 +13,10 @@ export class CpuBackend {
   setSize(size) {
     if (!Number.isInteger(size) || size < 1) throw Error("Invalid worker count");
     this.size = size;
-    // Park excess slots with their LUTs intact; busy slots finish their current job.
+    // 让多余的槽位闲置但保留其 LUT；忙碌的槽位先完成当前任务。
     if (this.queue.length) this.pump();
   }
-  // Each idle slot receives one warmup job; module/LUT/JIT work precedes timing.
+  // 每个空闲槽位接收一个预热任务；模块/LUT/JIT 工作在计时之前完成。
   async prepare(snapshot, signal) {
     await Promise.all(Array.from({ length: this.size }, (_, i) => this.run({
       snapshot, action: 0, count: 32, start: i * 32, seed: 713,
@@ -32,7 +32,7 @@ export class CpuBackend {
       let group = this.requests.get(signal);
       if (!group) {
         group = { jobs: new Set(), abort: () => {
-          // Reject consumers now, but retain busy slots until their replies arrive.
+          // 立即拒绝消费方，但保留忙碌的槽位直到它们的回复到达。
           this.queue = this.queue.filter(j => j.signal !== signal);
           for (const j of [...group.jobs]) j.reject(cancelled());
         } };

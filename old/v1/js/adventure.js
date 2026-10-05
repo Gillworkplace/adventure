@@ -2442,13 +2442,13 @@ class Board {
     return [
       this.rankReg,
       this.autoProcess,
-      this.score,                     // 현재 점수
-      stage[this.score - 1][1],       // 현재 스테이지 ID
-      stage[this.score - 1][2],       // 현재 스페이스 ID
-      this.diceUse,                   // 주사위 사용 횟수
-      this.isDouble ? 1 : 0,          // 더블 상태
-      ...Array(5).fill(0).map((_, i) => this.cards[i] ? this.cards[i][0] : 0), // cardIds 패딩 (최대 5개)
-      ...this.cardInfo.map(card => card[3]) // 모든 카드의 cardGetYN 상태 (고정 길이 30)
+      this.score,                     // 当前分数
+      stage[this.score - 1][1],       // 当前 stage ID
+      stage[this.score - 1][2],       // 当前空格 ID
+      this.diceUse,                   // 骰子使用次数
+      this.isDouble ? 1 : 0,          // 双倍状态
+      ...Array(5).fill(0).map((_, i) => this.cards[i] ? this.cards[i][0] : 0), // cardIds 填充（最多 5 个）
+      ...this.cardInfo.map(card => card[3]) // 所有卡片的 cardGetYN 状态（固定长度 30）
     ];
   }
 
@@ -5779,7 +5779,7 @@ function createUsageOverlayWithSteps(steps) {
       try {
         bubble.releasePointerCapture(bubbleDragState.pointerId);
       } catch (error) {
-        // Pointer capture may already be released by the browser.
+        // 指针捕获可能已被浏览器释放。
       }
     }
     bubbleDragState = null;

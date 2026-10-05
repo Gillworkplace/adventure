@@ -1,4 +1,4 @@
-"""Extend only the declared horizon of a complete short-prefix model."""
+"""只扩展一个已完整生成的短前缀模型所声明的 horizon。"""
 import json,pathlib,struct,sys
 root=pathlib.Path(sys.argv[1]);new=int(sys.argv[2]);ready=json.loads((root/'ready.json').read_text())
 old=ready['horizon'];cap=ready['cap']

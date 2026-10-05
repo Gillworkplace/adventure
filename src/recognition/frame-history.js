@@ -1,5 +1,5 @@
-// Retained pixels contain only score, hand, and dice information. Profile,
-// board, deck, and the shared desktop are never retained in this history.
+// 保留的像素只包含分数、手牌和骰子信息。资料面板、棋盘、
+// 牌库以及共享桌面绝不保留在此历史中。
 export const HISTORY_REGIONS = Object.freeze([
   { name: "score", x: 74, y: 55, width: 51, height: 21 },
   { name: "hand", x: 420, y: 638, width: 220, height: 42 },
@@ -54,7 +54,7 @@ export class FrameHistory {
       else if (observation.issue && !frame.replayed) pending = true;
       rows.push({ at: frame.at, observation });
     }
-    // Only parsed values leave this worker; the retained pixels stay private.
+    // 只有解析后的数值才会离开此 worker；保留的像素保持私有。
     return { rows, reread, pending };
   }
 }

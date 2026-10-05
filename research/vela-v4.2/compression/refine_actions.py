@@ -1,4 +1,4 @@
-"""One fixed learner-behavior collection, three hinge epochs, mixed episode selection."""
+"""一次固定的 learner-behavior 采集、三个 hinge epoch、混合 episode 选择。"""
 from pathlib import Path
 import os,sys,csv,json,subprocess,time,hashlib
 R=Path(__file__).resolve().parent;W=R.parents[2]

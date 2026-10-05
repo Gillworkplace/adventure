@@ -1,4 +1,4 @@
-"""Joint hand/time compression. All teacher values come from cap5 FULL100."""
+"""手牌/时间的联合压缩。所有教师值均来自 cap5 FULL100。"""
 import os
 os.environ['OPENBLAS_NUM_THREADS']='8'
 from pathlib import Path
@@ -35,7 +35,7 @@ def export(name,base,tiers,phi,gt,ga,anchor):
   f.write(struct.pack('<8i',0x56435333 if anchor else 0x56435332,100,P,0,K,TG,1 if anchor else 0,0))
   fp(f,base)
   if anchor:np.asarray(tiers[1],dtype='<i2').tofile(f)
-  fp(f,[1]) # empty low coefficient quantizer scale (Q=0)
+  fp(f,[1]) # 空的低阶系数量化缩放系数（Q=0）
   quant(f,phi);fp(f,gt);quant(f,ga)
  assert out.stat().st_size<100000000
  return {'path':str(out.relative_to(WS)),'bytes':out.stat().st_size,'MiB':out.stat().st_size/2**20,'sha256':digest(out),'K':K,'TG':TG,'exact_singleton':anchor}
@@ -52,7 +52,7 @@ def fit(anchor,groups_override=None,tag_override=None):
  if anchor:v[:,:23]=0
  sw=np.sqrt(weights);vw=v*sw[None,:]
  eigen,u=np.linalg.eigh(vw@vw.T);ii=np.argsort(eigen)[::-1][:maxk];ev=eigen[ii];u=u[:,ii]
- # Undo the hand weighting after finding the shared subspace.
+ # 求出共享子空间后撤销手牌加权。
  phi=(u.T@v).T/np.sqrt(np.maximum(ev,1e-20))[None,:]*np.sqrt(80730)
  phi=phi.astype(np.float32);phi[0]=0
  if anchor:phi[:23]=0

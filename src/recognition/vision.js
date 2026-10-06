@@ -338,6 +338,7 @@ export class CnGameRecognizer {
     this.anchor = { ...templates.anchor, mask: this.inkMask(templates.anchor) };
     this.pill = templates.pill;
     this.dice = templates.dice;
+    this.itemBar = templates.itemBar;
     this.digits = templates.digits.position;
     this.bounds = templates.bounds;
   }
@@ -507,13 +508,37 @@ export class CnGameRecognizer {
     const value = read === null ? null : Number(read.text);
     return value !== null && value >= 0 && value <= 100 ? value : null;
   }
+  // 底部中央道具栏（5 槽）：按槽内彩色像素判定占用——空槽是暗色
+  // 边框，道具图标是有饱和度的彩色立绘。身份识别待样本积累后
+  // 以图标模板加入。
+  items() {
+    const bar = this.itemBar;
+    if (!bar) return null;
+    const scale = this.detailData ? 2 : 1;
+    const data = this.detailData ?? this.data;
+    const stride = 1234 * scale;
+    const slots = [];
+    const slotW = bar.width / bar.slots;
+    for (let s = 0; s < bar.slots; s++) {
+      let colored = 0;
+      const x0 = Math.round((bar.x + s * slotW) * scale), x1 = Math.round((bar.x + (s + 1) * slotW) * scale);
+      const y0 = Math.round(bar.y * scale), y1 = Math.round((bar.y + bar.height) * scale);
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+        const i = (y * stride + x) * 4;
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        if (Math.max(r, g, b) - Math.min(r, g, b) > 40 && Math.max(r, g, b) > 120) colored++;
+      }
+      slots.push(+(colored > 120 * scale * scale));
+    }
+    return { slots, count: slots.reduce((sum, v) => sum + v, 0) };
+  }
   readCore(image, context, detail) {
     this.data = image.data;
     this.detailData = detail?.data ?? null;
     this.lastAnchorScore = 0;
     if (!this.visible()) return { visible: false, cn: true, issue: "covered", anchorScore: 0 };
-    const position = this.number(), diceUsed = this.diceNumber();
-    return { visible: true, cn: true, position, diceUsed, hand: [], bonusRoll: diceUsed === null ? null : false,
+    const position = this.number(), diceUsed = this.diceNumber(), items = this.items();
+    return { visible: true, cn: true, position, diceUsed, items, hand: [], bonusRoll: diceUsed === null ? null : false,
       issue: position === null ? "score" : diceUsed === null ? "dice" : null,
       anchorScore: Math.round(this.lastAnchorScore * 1000) / 1000 };
   }

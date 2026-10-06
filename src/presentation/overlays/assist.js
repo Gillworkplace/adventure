@@ -165,7 +165,10 @@ export function bindAssistBar(session, assist, prediction, voice) {
     const [title, detail] = guidance(assist, performance.now() - issueSince);
     const request = bar.querySelector(".assist-request");
     if (request.textContent !== title) request.textContent = title;
-    bar.querySelector(".assist-request-detail").textContent = detail;
+    const items = assist.tracker.lastObservation?.items;
+    bar.querySelector(".assist-request-detail").textContent = r.ready && items
+      ? `${detail} 道具 ${items.count}/${items.slots.length}。`
+      : detail;
     const scanning = !!assist.stream && r.issue?.startsWith("deck-");
     const count = bar.querySelector(".assist-count");
     count.hidden = !scanning; count.textContent = `${r.seen || 0} / 30 已确认`;

@@ -409,20 +409,32 @@ export class CnGameRecognizer {
     return holes;
   }
   // 窗口内数字串读取：列游程 → 底部墨迹段 → 模板匹配 + 拓扑圈数
-  // 门禁，任一字形无把握即整体作废（宁缺毋滥）。maxGlyphHeight 用于
-  // 排除窗口内更高的非数字元素（如骰子行的斜杠）。
-  matchGlyphs(x, y, width, height, predicate, maxGlyphHeight) {
-    const mask = this.textMask(x, y, width, height, predicate);
+  // 门禁，任一字形无把握即整体作废（宁缺毋滥）。
+  // 有 2 倍细节图（detailData，2468×1388）时在细节空间读取：胶囊
+  // 数字在 canonical 尺度只有 8 像素高，5/6、0/8 一类的判别差异只有
+  // 2-3 像素；细节空间采样到 16 像素高，笔画与封闭圈都是真实信息
+  // 增益（模板也按细节尺度提取）。
+  matchGlyphs(window, threshold, maxGlyphHeight) {
+    const scale = this.detailData ? 2 : 1;
+    const data = this.detailData ?? this.data;
+    const stride = 1234 * scale;
+    const x = window.x * scale, y = window.y * scale;
+    const width = window.width * scale, height = window.height * scale;
+    const mask = new Uint8Array(width * height);
+    for (let yy = 0; yy < height; yy++) for (let xx = 0; xx < width; xx++) {
+      const i = ((y + yy) * stride + x + xx) * 4;
+      mask[yy * width + xx] = +(Math.min(data[i], data[i + 1], data[i + 2]) > threshold);
+    }
     const columns = Array.from({ length: width }, (_, xx) => { for (let yy = 0; yy < height; yy++) if (mask[yy * width + xx]) return true; return false; });
-    // canonical 尺度下笔画很细，任何有墨迹的列都算；相邻数字只隔
-    // 1-2 列，不做游程合并，否则相邻数字会被粘成一个超宽块。
+    // 笔画很细，任何有墨迹的列都算；相邻数字只隔 1-2 列，不做游程
+    // 合并，否则相邻数字会被粘成一个超宽块。
     const parts = [];
     let start = -1;
     for (let xx = 0; xx <= columns.length; xx++) {
       const ink = xx < columns.length && columns[xx];
       if (ink && start < 0) start = xx;
       else if (!ink && start >= 0) {
-        if (xx - 1 - start >= 1) parts.push([start, xx - 1]);
+        if (xx - 1 - start >= scale) parts.push([start, xx - 1]);
         start = -1;
       }
     }
@@ -432,21 +444,21 @@ export class CnGameRecognizer {
     for (const [rawLeft, rawRight] of parts) {
       const rows = Array.from({ length: height }, (_, yy) => { for (let xx = rawLeft; xx <= rawRight; xx++) if (mask[yy * width + xx]) return true; return false; });
       // 胶囊上沿的装饰竖线会把包围盒撑高：从最底部的墨迹行向上走，
-      // 容忍字形内部 1-2 行的断笔（如“2”的斜笔在细采样下可能断开），
-      // 遇到 3 行以上的空档才视为装饰线并截止。
+      // 容忍字形内部 1-2 行的断笔，遇到 3 行以上的空档才视为装饰线。
       let bottom = rows.lastIndexOf(true);
       if (bottom < 0) continue;
       bottom += 1;
       let top = bottom - 1, gap = 0;
       for (let yy = bottom - 2; yy >= 0; yy--) {
         if (rows[yy]) { top = yy; gap = 0; }
-        else if (++gap > 2) break;
+        else if (++gap > 2 * scale) break;
       }
       // 段内重新收紧左右边界（剔除与数字粘连的噪声空列）。
       let left = rawRight, right = rawLeft;
       for (let xx = rawLeft; xx <= rawRight; xx++) for (let yy = top; yy < bottom; yy++)
         if (mask[yy * width + xx]) { left = Math.min(left, xx); right = Math.max(right, xx); }
-      if (right < left || bottom - top < 5 || bottom - top > maxGlyphHeight || right - left < 1 || right - left > 7) continue;
+      if (right - left + 1 < 2 * scale || right - left + 1 > 8 * scale ||
+          bottom - top < 5 * scale || bottom - top > maxGlyphHeight * scale) continue;
       const glyph = { left, right, top, bottom };
       const feature = normalized(mask, width, top, bottom, left, right + 1), scores = new Map();
       for (const template of this.digits) {
@@ -455,8 +467,8 @@ export class CnGameRecognizer {
         error = error / feature.length + Math.abs((right - left + 1) / (bottom - top) - template.width / template.height) * .3;
         scores.set(template.value, Math.min(scores.get(template.value) ?? Infinity, error));
       }
-      // 拓扑门禁：圈数超标或不足下限的候选直接出局（8 至少 1 圈），
-      // 接受阈值与歧义余量只在过关候选之间计算。
+      // 拓扑门禁：圈数超标的候选直接出局，接受阈值与歧义余量只在
+      // 过关候选之间计算。
       const holeCount = this.holes(mask, width, glyph);
       const allowed = [...scores]
         .filter(([value]) => CN_HOLE_LIMITS[value][0] <= holeCount && holeCount <= CN_HOLE_LIMITS[value][1])
@@ -468,20 +480,19 @@ export class CnGameRecognizer {
     }
     if (!text) return null;
     if (text.length > 1 && text.startsWith("0")) return null;
-    return { text, glyphs };
+    return { text, glyphs, scale };
   }
   number() {
-    const { x, y, width, height } = this.pill;
-    const core = this.matchGlyphs(x, y, width, height, (r, g, b) => Math.min(r, g, b) > 135, 12);
+    const core = this.matchGlyphs(this.pill, 135, 12);
     if (!core) return null;
     let text = core.text;
     // 隐藏首位：个别分辨率下最左边的前导数字渲染得比其余位暗
     // （阈值 135 抓不到）。核心读数最左字形左侧若有空间，就用
     // 更低阈值在“核心字形左边界 - 2”为止的窄带里补读一位，
     // 阈值降档带来的光晕粘连被右边界截断挡住。
-    const coreLeft = core.glyphs[0].left + x;
-    if (core.glyphs.length >= 2 && coreLeft >= x + 8) {
-      const lead = this.matchGlyphs(x, y, coreLeft - 2 - x, height, (r, g, b) => Math.min(r, g, b) > 100, 12);
+    const coreLeft = core.glyphs[0].left / core.scale + this.pill.x;
+    if (core.glyphs.length >= 2 && coreLeft >= this.pill.x + 8) {
+      const lead = this.matchGlyphs({ ...this.pill, width: coreLeft - 2 - this.pill.x }, 100, 12);
       if (lead && lead.text.length === 1) text = lead.text + text;
     }
     const value = Number(text);
@@ -489,16 +500,16 @@ export class CnGameRecognizer {
   }
   // 底栏“本局已投掷次数 N/100”的 N：与韩服 diceUsed 同语义。
   // 该值以更暗的灰阶渲染，阈值放宽到 100；窗口内右侧的斜杠
-  // （高 11-12）由高度上限 9 排除。
+  // （高 11-12 canonical）由高度上限 9 排除。
   diceNumber() {
     if (!this.dice) return null;
-    const { x, y, width, height } = this.dice;
-    const read = this.matchGlyphs(x, y, width, height, (r, g, b) => Math.min(r, g, b) > 100, 9);
+    const read = this.matchGlyphs(this.dice, 100, 9);
     const value = read === null ? null : Number(read.text);
     return value !== null && value >= 0 && value <= 100 ? value : null;
   }
-  readCore(image) {
+  readCore(image, context, detail) {
     this.data = image.data;
+    this.detailData = detail?.data ?? null;
     this.lastAnchorScore = 0;
     if (!this.visible()) return { visible: false, cn: true, issue: "covered", anchorScore: 0 };
     const position = this.number(), diceUsed = this.diceNumber();
@@ -506,5 +517,5 @@ export class CnGameRecognizer {
       issue: position === null ? "score" : diceUsed === null ? "dice" : null,
       anchorScore: Math.round(this.lastAnchorScore * 1000) / 1000 };
   }
-  read(image) { return this.readCore(image); }
+  read(image, context, detail) { return this.readCore(image, context, detail); }
 }

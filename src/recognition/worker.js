@@ -5,14 +5,21 @@ import { CharacterProbe } from "./character.js";
 let recognizers = [], active = -1, region, sourceSize, lastSearch = -Infinity;
 let searchIssue = "window";
 const status = new RecognitionStatus();
-const source = new OffscreenCanvas(1, 1), screen = new OffscreenCanvas(1234, 694);
+const source = new OffscreenCanvas(1, 1), screen = new OffscreenCanvas(1234, 694), detailScreen = new OffscreenCanvas(2468, 1388);
 const input = source.getContext("2d", { willReadFrequently: true });
 const output = screen.getContext("2d", { willReadFrequently: true });
+const detailOutput = detailScreen.getContext("2d", { willReadFrequently: true });
 let anchorCanvas = new OffscreenCanvas(103, 14), anchorOutput = anchorCanvas.getContext("2d", { willReadFrequently: true });
 
 function crop(rect) {
   output.drawImage(source, rect.x, rect.y, rect.width, rect.height, 0, 0, 1234, 694);
   return screen.getContext("2d").getImageData(0, 0, 1234, 694);
+}
+// 国服数字窗口的 2 倍细节图：数字笔画细节（5/6、0/8 判别位）
+// 在 canonical 尺度只有 2-3 像素，翻倍采样后翻倍增强。
+function cropDetail(rect) {
+  detailOutput.drawImage(source, rect.x, rect.y, rect.width, rect.height, 0, 0, 2468, 1388);
+  return detailScreen.getContext("2d").getImageData(0, 0, 2468, 1388);
 }
 function align(rect, recognizer) {
   const a = recognizer.anchor;
@@ -73,7 +80,7 @@ self.onmessage = async ({ data }) => {
     const size = bitmap.width + "x" + bitmap.height;
     if (size !== sourceSize) { region = null; active = -1; lastSearch = -Infinity; searchIssue = "window"; status.reset(); sourceSize = size; source.width = bitmap.width; source.height = bitmap.height; }
     input.drawImage(bitmap, 0, 0);
-    let observation = region && recognizers[active] ? recognizers[active].read(crop(region), context) : null;
+    let observation = region && recognizers[active] ? recognizers[active].read(crop(region), context, cropDetail(region)) : null;
     if (!observation?.visible && started - lastSearch > 1200) {
       lastSearch = started;
       searchIssue = region ? "covered" : "window";
@@ -82,7 +89,7 @@ self.onmessage = async ({ data }) => {
         for (let index = 0; index < recognizers.length; index++) {
           const adjusted = align(candidate, recognizers[index]);
           if (!adjusted) continue;
-          const result = recognizers[index].read(crop(adjusted), context);
+          const result = recognizers[index].read(crop(adjusted), context, cropDetail(adjusted));
           if (result.visible) { region = adjusted; active = index; observation = result; break; }
         }
         if (observation?.visible) break;

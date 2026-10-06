@@ -326,8 +326,8 @@ export class GameRecognizer {
 }
 
 // 国服（大冒险）识别器：左上面板为基准窗口，读取位置胶囊
-// “N 格”的数字。6/7 的字形模板尚未采样，含 6/7 的位置
-// 会安全地返回 null，而不是误读。
+// “N 格”与底栏“本局已投掷次数 N/100”的数字。7 的字形模板
+// 尚未采样，含 7 的数值会安全地返回 null，而不是误读。
 export class CnGameRecognizer {
   constructor(templates) {
     this.layout = "cn";
@@ -335,6 +335,7 @@ export class CnGameRecognizer {
     this.templates = templates;
     this.anchor = { ...templates.anchor, mask: this.inkMask(templates.anchor) };
     this.pill = templates.pill;
+    this.dice = templates.dice;
     this.digits = templates.digits.position;
     this.bounds = templates.bounds;
   }
@@ -370,14 +371,14 @@ export class CnGameRecognizer {
     this.lastAnchorScore = this.inkSimilarity(mask, a.mask);
     return this.lastAnchorScore > .62;
   }
-  number() {
-    const { x, y, width, height } = this.pill;
-    const mask = this.textMask(x, y, width, height, (r, g, b) => Math.min(r, g, b) > 135);
+  // 窗口内数字串读取：列游程 → 底部墨迹段 → 模板匹配，
+  // 任一字形无把握即整体作废（宁缺毋滥）。maxGlyphHeight 用于
+  // 排除窗口内更高的非数字元素（如骰子行的斜杠）。
+  matchGlyphs(x, y, width, height, predicate, maxGlyphHeight) {
+    const mask = this.textMask(x, y, width, height, predicate);
     const columns = Array.from({ length: width }, (_, xx) => { for (let yy = 0; yy < height; yy++) if (mask[yy * width + xx]) return true; return false; });
-    // canonical 尺度下笔画很细，任何有墨迹的列都算；胶囊上沿的
-    // 装饰杂线由后面的底部墨迹段与高度过滤剔除。
-    // canonical 尺度下相邻数字只隔 1-2 列，不做游程合并，
-    // 否则相邻数字会被粘成一个超宽块。
+    // canonical 尺度下笔画很细，任何有墨迹的列都算；相邻数字只隔
+    // 1-2 列，不做游程合并，否则相邻数字会被粘成一个超宽块。
     const parts = [];
     let start = -1;
     for (let xx = 0; xx <= columns.length; xx++) {
@@ -407,7 +408,7 @@ export class CnGameRecognizer {
       let left = rawRight, right = rawLeft;
       for (let xx = rawLeft; xx <= rawRight; xx++) for (let yy = top; yy < bottom; yy++)
         if (mask[yy * width + xx]) { left = Math.min(left, xx); right = Math.max(right, xx); }
-      if (right < left || bottom - top < 5 || bottom - top > 12 || right - left < 1 || right - left > 7) continue;
+      if (right < left || bottom - top < 5 || bottom - top > maxGlyphHeight || right - left < 1 || right - left > 7) continue;
       const feature = normalized(mask, width, top, bottom, left, right + 1), scores = new Map();
       for (const template of this.digits) {
         let error = 0;
@@ -419,18 +420,33 @@ export class CnGameRecognizer {
       if (sorted[0][1] > .19 || sorted[1][1] - sorted[0][1] < .018) return null;
       text += sorted[0][0];
     }
-    if (!text || text.length > 4) return null;
+    if (!text) return null;
     if (text.length > 1 && text.startsWith("0")) return null;
-    const value = Number(text);
-    return value >= this.bounds.positionMin && value <= this.bounds.positionMax ? value : null;
+    return text;
+  }
+  number() {
+    const { x, y, width, height } = this.pill;
+    const text = this.matchGlyphs(x, y, width, height, (r, g, b) => Math.min(r, g, b) > 135, 12);
+    const value = text === null ? null : Number(text);
+    return value !== null && value >= this.bounds.positionMin && value <= this.bounds.positionMax ? value : null;
+  }
+  // 底栏“本局已投掷次数 N/100”的 N：与韩服 diceUsed 同语义。
+  // 该值以更暗的灰阶渲染，阈值放宽到 100；窗口内右侧的斜杠
+  // （高 11-12）由高度上限 9 排除。
+  diceNumber() {
+    if (!this.dice) return null;
+    const { x, y, width, height } = this.dice;
+    const text = this.matchGlyphs(x, y, width, height, (r, g, b) => Math.min(r, g, b) > 100, 9);
+    const value = text === null ? null : Number(text);
+    return value !== null && value >= 0 && value <= 100 ? value : null;
   }
   readCore(image) {
     this.data = image.data;
     this.lastAnchorScore = 0;
-    if (!this.visible()) return { visible: false, issue: "covered", anchorScore: 0 };
-    const position = this.number();
-    return { visible: true, position, diceUsed: null, hand: [], bonusRoll: null,
-      issue: position === null ? "score" : null,
+    if (!this.visible()) return { visible: false, cn: true, issue: "covered", anchorScore: 0 };
+    const position = this.number(), diceUsed = this.diceNumber();
+    return { visible: true, cn: true, position, diceUsed, hand: [], bonusRoll: diceUsed === null ? null : false,
+      issue: position === null ? "score" : diceUsed === null ? "dice" : null,
       anchorScore: Math.round(this.lastAnchorScore * 1000) / 1000 };
   }
   read(image) { return this.readCore(image); }

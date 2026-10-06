@@ -380,6 +380,20 @@ export class AssistTracker {
   }
   correct(values, at) {
     if (!this.lastObservation?.visible) return false;
+    if (this.verified && this.state && this.lastObservation.cn) {
+      // 国服的手牌与骰子按钮状态无法从屏幕续读，只能来自手动修正：
+      // 直接写入当前状态，后续观测按“粘性”保留（见 update 国服分支）。
+      const candidate = {
+        position: Number.isInteger(values.position) ? values.position : this.state.position,
+        diceUsed: Number.isInteger(values.diceUsed) ? values.diceUsed : this.state.diceUsed,
+        bonusRoll: typeof values.bonusRoll === "boolean" ? values.bonusRoll : this.state.bonusRoll,
+        hand: Array.isArray(values.hand) ? values.hand : this.state.hand,
+      };
+      if (!completeCore({ visible: true, ...candidate })) return false;
+      this.state = { ...this.state, ...candidate, deckAvailable: FULL_DECK };
+      this.accepted(at);
+      return true;
+    }
     this.manual = { key: keyOf(this.lastObservation), values, expires: at + 15000 };
     this.pendingKey = null;
     return true;
@@ -440,6 +454,17 @@ export class AssistTracker {
     consider(); return { intermediate: checkpoints.at(-1) ?? null, checkpoints, hint, start, unconfirmed };
   }
   accepted(at) { this.stateAt = at; this.actionHint = null; this.lost = false; this.motion = null; }
+  // 国服兜底：没有牌库可扫描，对账无法解释时以屏幕读数为基准
+  // 重锚（记录失配供诊断），而不是卡在牌库请求上。
+  acceptObservation(observed, at, reason) {
+    this.lastMismatch = { reason, from: this.state ? core(this.state) : null, to: core(observed),
+      diceDelta: this.state ? observed.diceUsed - this.state.diceUsed : null };
+    this.state = { schemaVersion: 1, rulesVersion: RULES_VERSION, ...core(observed), deckAvailable: FULL_DECK };
+    this.verified = true;
+    this.reconciliation = this.movingKey = null;
+    this.accepted(at);
+    return this.result(null, { state: this.state, synchronized: true });
+  }
   rememberCharacter(observed) {
     if (this.characterAnchor?.position !== this.state.position) this.characterAnchor = null;
     if (observed.character?.present && !observed.deck?.open)
@@ -527,7 +552,12 @@ export class AssistTracker {
     if (key !== this.pendingKey) { this.pendingKey = key; this.pendingSince = at; this.pendingCount = 1; }
     else this.pendingCount++;
     if (!this.verified) this.collectDeck(observed, key, at, sourceFrame);
-    const unchanged = this.verified && same(core(observed), { ...core(this.state), hand: classes(this.state.hand) });
+    // 国服的手牌/按钮状态是粘性的：无手动修正时观测值携带的是
+    // “未知”（空手牌），不是“打出卡牌”，按状态原值参与比较。
+    const comparable = observed.cn && !this.manual
+      ? { ...observed, hand: this.state?.hand ?? [], bonusRoll: this.state?.bonusRoll ?? observed.bonusRoll }
+      : observed;
+    const unchanged = this.verified && same(core(comparable), { ...core(this.state), hand: classes(this.state.hand) });
     // 分数未变但骰子/卡牌已消耗，是动作前奏，包括棋盘被其他窗口
     // 遮住的情况。仅凭一个合法的两动作解释不能把它变成已抵达状态。
     // 观测到的离场与回归允许真正的同格返回；无任何可能移动的
@@ -536,7 +566,10 @@ export class AssistTracker {
       observed.character.score <= .26;
     const unknown = !observed.character || typeof observed.character.present !== "boolean" ||
       observed.character.present === false && !absent;
-    const prelude = this.verified && !unchanged && actionStartsHere(this.state, observed);
+    // 国服观测不含手牌/角色图元信息：前奏判定只看骰子计数的变化，
+    // 手牌差异（手动修正残留）不构成动作前奏。
+    const prelude = this.verified && !unchanged && actionStartsHere(this.state, comparable) &&
+      (!observed.cn || observed.diceUsed !== this.state.diceUsed);
     if (prelude) {
       if (this.motion?.key !== key) this.motion = { key, departed: 0, returned: 0, at: -Infinity, frame: null };
       if (at - this.motion.at >= 40 && sourceFrame !== this.motion.frame) {
@@ -558,6 +591,15 @@ export class AssistTracker {
       return this.result(null, { state: this.state, synchronized: true, deckOpen: !!observed.deck?.open });
     }
     if (!this.verified) {
+      // 国服没有牌库扫描模板：核心读数（位置+本局已投掷次数）本身
+      // 即可作为基准状态，牌库按全牌库处理。
+      if (observed.cn) {
+        this.state = { schemaVersion: 1, rulesVersion: RULES_VERSION, ...core(observed), deckAvailable: FULL_DECK };
+        this.verified = true; this.verifications++;
+        this.reconciliation = this.movingKey = null;
+        this.accepted(at);
+        return this.result(null, { state: this.state, synchronized: true });
+      }
       if (this.seen < 30) {
         return this.result(this.deckIssue(observed.deck));
       }
@@ -579,6 +621,7 @@ export class AssistTracker {
       // 一个同时也是合法同格返回的核心状态是真正歧义的：
       // 永远不要授权前奏，但也不要在可选探测上无限等待。
       if (!absent && reconcileState(this.state, observed).length && at - this.pendingSince >= 4500) {
+        if (observed.cn) return this.acceptObservation(observed, at, "cn-prelude-ambiguous");
         this.requireDeck("gap");
         this.collectDeck(observed, key, at, sourceFrame);
         return this.result(this.deckIssue(observed.deck));
@@ -591,6 +634,26 @@ export class AssistTracker {
       this.rememberCharacter(observed);
       this.accepted(at);
       return this.result(null, { state: this.state, deckOpen: !!observed.deck?.open });
+    }
+    // 国服状态完全可观测（位置+本局已投掷次数直读）：不存在需要
+    // 通过动作序列恢复的牌库知识，稳定的屏幕读数本身就是新状态。
+    // 手牌与骰子按钮状态屏幕上读不到，保持当前值（仅手动修正或
+    // 新开局 fresh 重置会改写）。骰子数回退/跳变，或位置变化而无
+    // 投掷，属于规则模型无法解释的迁移，记入失配供诊断（不阻塞同步）。
+    if (observed.cn) {
+      const diceDelta = observed.diceUsed - this.state.diceUsed;
+      const unexplained = diceDelta < 0 || diceDelta > 2 ||
+        (observed.position !== this.state.position && diceDelta === 0);
+      this.lastMismatch = unexplained
+        ? { reason: "cn-unexplained", from: core(this.state), to: core(observed), diceDelta }
+        : null;
+      this.state = { schemaVersion: 1, rulesVersion: RULES_VERSION,
+        position: observed.position, diceUsed: observed.diceUsed,
+        bonusRoll: this.manual ? observed.bonusRoll : this.state.bonusRoll,
+        hand: this.manual ? [...observed.hand] : this.state.hand,
+        deckAvailable: FULL_DECK };
+      this.accepted(at);
+      return this.result(null, { state: this.state });
     }
     const evidence = this.intermediate(observed, at), intermediate = evidence.intermediate;
     this.actionHint ||= evidence.hint;
@@ -650,6 +713,7 @@ export class AssistTracker {
     };
     const settlingLimit = diceDelta >= 0 && diceDelta <= 2 ? 4500 : 2500;
     if (at - this.pendingSince < settlingLimit) return this.result("settling");
+    if (observed.cn) return this.acceptObservation(observed, at, "cn-gap");
     this.requireDeck("gap");
     this.collectDeck(observed, key, at, sourceFrame);
     return this.result("deck-open");

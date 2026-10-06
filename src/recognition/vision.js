@@ -326,8 +326,10 @@ export class GameRecognizer {
 }
 
 // 国服（大冒险）识别器：左上面板为基准窗口，读取位置胶囊
-// “N 格”与底栏“本局已投掷次数 N/100”的数字。7 的字形模板
-// 尚未采样，含 7 的数值会安全地返回 null，而不是误读。
+// “N 格”与底栏“本局已投掷次数 N/100”的数字。
+// 模板匹配之外叠加拓扑圈数门禁（数字的封闭圈数是物理特征），
+// 用于拦截模板分数接近导致的 3↔8、0↔8 类混淆。
+const CN_HOLE_LIMITS = { 0: [0, 1], 1: [0, 0], 2: [0, 0], 3: [0, 0], 4: [0, 1], 5: [0, 0], 6: [0, 1], 7: [0, 0], 8: [0, 2], 9: [0, 1] };
 export class CnGameRecognizer {
   constructor(templates) {
     this.layout = "cn";
@@ -371,8 +373,43 @@ export class CnGameRecognizer {
     this.lastAnchorScore = this.inkSimilarity(mask, a.mask);
     return this.lastAnchorScore > .62;
   }
-  // 窗口内数字串读取：列游程 → 底部墨迹段 → 模板匹配，
-  // 任一字形无把握即整体作废（宁缺毋滥）。maxGlyphHeight 用于
+  // 拓扑圈数：字形紧包围盒内被墨迹完全包住的背景连通块数。
+  // 数字的圈数是物理特征：8=2、0/6/9=1、其余=0。笔画断裂只会
+  // 让圈数变少，不会变多——检测到的圈数超过该数字的上限即可
+  // 确凿否决（例如“8”至少要 1 圈，敞口的 3 冒充不了 8）。
+  holes(mask, width, glyph) {
+    const gw = glyph.right - glyph.left + 1, gh = glyph.bottom - glyph.top;
+    const grid = [];
+    for (let yy = -1; yy <= gh; yy++) {
+      const row = [0];
+      for (let xx = 0; xx < gw; xx++) row.push(yy < 0 || yy >= gh ? 0 : (mask[(glyph.top + yy) * width + glyph.left + xx] ? 1 : 0));
+      row.push(0);
+      grid.push(row);
+    }
+    const total = grid.length, span = grid[0].length;
+    const seen = Array.from({ length: total }, () => new Uint8Array(span));
+    let holes = 0;
+    for (let yy = 0; yy < total; yy++) for (let xx = 0; xx < span; xx++) {
+      if (grid[yy][xx] || seen[yy][xx]) continue;
+      const stack = [[xx, yy]];
+      seen[yy][xx] = 1;
+      let open = false;
+      while (stack.length) {
+        const [cx, cy] = stack.pop();
+        if (cx === 0 || cy === 0 || cx === span - 1 || cy === total - 1) open = true;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = cx + dx, ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= span || ny >= total || grid[ny][nx] || seen[ny][nx]) continue;
+          seen[ny][nx] = 1;
+          stack.push([nx, ny]);
+        }
+      }
+      if (!open) holes++;
+    }
+    return holes;
+  }
+  // 窗口内数字串读取：列游程 → 底部墨迹段 → 模板匹配 + 拓扑圈数
+  // 门禁，任一字形无把握即整体作废（宁缺毋滥）。maxGlyphHeight 用于
   // 排除窗口内更高的非数字元素（如骰子行的斜杠）。
   matchGlyphs(x, y, width, height, predicate, maxGlyphHeight) {
     const mask = this.textMask(x, y, width, height, predicate);
@@ -390,6 +427,7 @@ export class CnGameRecognizer {
       }
     }
     if (!parts.length) return null;
+    const glyphs = [];
     let text = "";
     for (const [rawLeft, rawRight] of parts) {
       const rows = Array.from({ length: height }, (_, yy) => { for (let xx = rawLeft; xx <= rawRight; xx++) if (mask[yy * width + xx]) return true; return false; });
@@ -409,6 +447,7 @@ export class CnGameRecognizer {
       for (let xx = rawLeft; xx <= rawRight; xx++) for (let yy = top; yy < bottom; yy++)
         if (mask[yy * width + xx]) { left = Math.min(left, xx); right = Math.max(right, xx); }
       if (right < left || bottom - top < 5 || bottom - top > maxGlyphHeight || right - left < 1 || right - left > 7) continue;
+      const glyph = { left, right, top, bottom };
       const feature = normalized(mask, width, top, bottom, left, right + 1), scores = new Map();
       for (const template of this.digits) {
         let error = 0;
@@ -416,19 +455,37 @@ export class CnGameRecognizer {
         error = error / feature.length + Math.abs((right - left + 1) / (bottom - top) - template.width / template.height) * .3;
         scores.set(template.value, Math.min(scores.get(template.value) ?? Infinity, error));
       }
-      const sorted = [...scores].sort((a, b) => a[1] - b[1]);
-      if (sorted[0][1] > .19 || sorted[1][1] - sorted[0][1] < .018) return null;
-      text += sorted[0][0];
+      // 拓扑门禁：圈数超标或不足下限的候选直接出局（8 至少 1 圈），
+      // 接受阈值与歧义余量只在过关候选之间计算。
+      const holeCount = this.holes(mask, width, glyph);
+      const allowed = [...scores]
+        .filter(([value]) => CN_HOLE_LIMITS[value][0] <= holeCount && holeCount <= CN_HOLE_LIMITS[value][1])
+        .sort((a, b) => a[1] - b[1]);
+      if (!allowed.length || allowed[0][1] > .19) return null;
+      if (allowed[1] && allowed[1][1] - allowed[0][1] < .018) return null;
+      text += allowed[0][0];
+      glyphs.push(glyph);
     }
     if (!text) return null;
     if (text.length > 1 && text.startsWith("0")) return null;
-    return text;
+    return { text, glyphs };
   }
   number() {
     const { x, y, width, height } = this.pill;
-    const text = this.matchGlyphs(x, y, width, height, (r, g, b) => Math.min(r, g, b) > 135, 12);
-    const value = text === null ? null : Number(text);
-    return value !== null && value >= this.bounds.positionMin && value <= this.bounds.positionMax ? value : null;
+    const core = this.matchGlyphs(x, y, width, height, (r, g, b) => Math.min(r, g, b) > 135, 12);
+    if (!core) return null;
+    let text = core.text;
+    // 隐藏首位：个别分辨率下最左边的前导数字渲染得比其余位暗
+    // （阈值 135 抓不到）。核心读数最左字形左侧若有空间，就用
+    // 更低阈值在“核心字形左边界 - 2”为止的窄带里补读一位，
+    // 阈值降档带来的光晕粘连被右边界截断挡住。
+    const coreLeft = core.glyphs[0].left + x;
+    if (core.glyphs.length >= 2 && coreLeft >= x + 8) {
+      const lead = this.matchGlyphs(x, y, coreLeft - 2 - x, height, (r, g, b) => Math.min(r, g, b) > 100, 12);
+      if (lead && lead.text.length === 1) text = lead.text + text;
+    }
+    const value = Number(text);
+    return value >= this.bounds.positionMin && value <= this.bounds.positionMax ? value : null;
   }
   // 底栏“本局已投掷次数 N/100”的 N：与韩服 diceUsed 同语义。
   // 该值以更暗的灰阶渲染，阈值放宽到 100；窗口内右侧的斜杠
@@ -436,8 +493,8 @@ export class CnGameRecognizer {
   diceNumber() {
     if (!this.dice) return null;
     const { x, y, width, height } = this.dice;
-    const text = this.matchGlyphs(x, y, width, height, (r, g, b) => Math.min(r, g, b) > 100, 9);
-    const value = text === null ? null : Number(text);
+    const read = this.matchGlyphs(x, y, width, height, (r, g, b) => Math.min(r, g, b) > 100, 9);
+    const value = read === null ? null : Number(read.text);
     return value !== null && value >= 0 && value <= 100 ? value : null;
   }
   readCore(image) {

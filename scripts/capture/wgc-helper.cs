@@ -28,7 +28,7 @@ public static class WgcSession {
 
     public static SizeInt32 RectSize(IntPtr hwnd) {
         Native.RECT r;
-        if (!Native.GetWindowRect(hwnd, out r)) r = default(Native.RECT);
+        if (!Native.GetPhysicalBounds(hwnd, out r)) r = default(Native.RECT);
         SizeInt32 s = default(SizeInt32);
         s.Width = Math.Max(1, r.Right - r.Left);
         s.Height = Math.Max(1, r.Bottom - r.Top);
@@ -122,4 +122,13 @@ public static class Native {
     public struct RECT { public int Left, Top, Right, Bottom; }
     [DllImport("user32.dll")]
     public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+    [DllImport("dwmapi.dll")]
+    public static extern int DwmGetWindowAttribute(IntPtr hWnd, int attribute, out RECT rect, int size);
+    // DWM 可见边界恒为物理像素；GetWindowRect 在高 DPI 缩放下是逻辑值，
+    // 会导致捕获区域小于真实窗口。
+    public static bool GetPhysicalBounds(IntPtr hWnd, out RECT rect) {
+        int hr = DwmGetWindowAttribute(hWnd, 9, out rect, Marshal.SizeOf(typeof(RECT)));
+        if (hr == 0 && rect.Right - rect.Left > 8 && rect.Bottom - rect.Top > 8) return true;
+        return GetWindowRect(hWnd, out rect);
+    }
 }

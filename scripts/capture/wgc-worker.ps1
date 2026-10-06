@@ -3,6 +3,17 @@
 # runs every WinRT call internally.
 param([long]$TargetHwnd)
 $ErrorActionPreference = 'Stop'
+# 捕获必须按物理像素进行：声明 per-monitor DPI aware，
+# 否则在高 DPI 缩放显示器上只能截到窗口左上角的一部分。
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public static class DpiAware {
+    [DllImport("user32.dll")]
+    public static extern bool SetProcessDpiAwarenessContext(IntPtr value);
+}
+"@
+[void][DpiAware]::SetProcessDpiAwarenessContext([IntPtr](-4))
 
 Add-Type -TypeDefinition @"
 using System;

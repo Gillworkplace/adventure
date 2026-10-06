@@ -337,13 +337,21 @@ export class CnGameRecognizer {
     this.templates = templates;
     this.anchor = { ...templates.anchor, mask: this.inkMask(templates.anchor) };
     this.pill = templates.pill;
-    this.dice = templates.dice;
-    this.itemBar = templates.itemBar;
+    // 底部 HUD 窗口按游戏内 UI 缩放档位区分（游戏画布恒为 1851×1041，
+    // 但 HUD 元素随设置档位整体放大/移位）。无 hudVariants 时退化为
+    // 顶层的单一几何（兼容旧模板文件）。
+    this.hudVariants = templates.hudVariants ?? [
+      { id: "std", slotPitch: templates.itemBar.width / templates.itemBar.slots,
+        itemBar: templates.itemBar, dice: templates.dice, charges: templates.charges, diceGlyphHeight: 9 },
+    ];
+    this.hud = this.hudVariants[0];
     this.itemTemplates = templates.items ?? [];
-    this.chargesWindow = templates.charges;
     this.digits = templates.digits.position;
     this.bounds = templates.bounds;
   }
+  get itemBar() { return this.hud.itemBar; }
+  get dice() { return this.hud.dice; }
+  get chargesWindow() { return this.hud.charges; }
   inkMask(template) {
     const mask = new Uint8Array(template.width * template.height);
     for (const p of template.ink) mask[p] = 1;
@@ -417,7 +425,9 @@ export class CnGameRecognizer {
   // 数字在 canonical 尺度只有 8 像素高，5/6、0/8 一类的判别差异只有
   // 2-3 像素；细节空间采样到 16 像素高，笔画与封闭圈都是真实信息
   // 增益（模板也按细节尺度提取）。
-  matchGlyphs(window, threshold, maxGlyphHeight) {
+  // geo 是字形几何的缩放系数（HUD 大档位下计数器数字同步放大），
+  // 缺省 1（与历史模板一致）。斜杠等高瘦符号仍被相对高度上限排除。
+  matchGlyphs(window, threshold, maxGlyphHeight, geo = 1, accept = .19) {
     const scale = this.detailData ? 2 : 1;
     const data = this.detailData ?? this.data;
     const stride = 1234 * scale;
@@ -433,11 +443,12 @@ export class CnGameRecognizer {
     // 合并，否则相邻数字会被粘成一个超宽块。
     const parts = [];
     let start = -1;
+    const minRun = Math.max(1, Math.round(scale * geo));
     for (let xx = 0; xx <= columns.length; xx++) {
       const ink = xx < columns.length && columns[xx];
       if (ink && start < 0) start = xx;
       else if (!ink && start >= 0) {
-        if (xx - 1 - start >= scale) parts.push([start, xx - 1]);
+        if (xx - 1 - start >= minRun) parts.push([start, xx - 1]);
         start = -1;
       }
     }
@@ -454,14 +465,16 @@ export class CnGameRecognizer {
       let top = bottom - 1, gap = 0;
       for (let yy = bottom - 2; yy >= 0; yy--) {
         if (rows[yy]) { top = yy; gap = 0; }
-        else if (++gap > 2 * scale) break;
+        else if (++gap > Math.ceil(2 * scale * geo)) break;
       }
       // 段内重新收紧左右边界（剔除与数字粘连的噪声空列）。
       let left = rawRight, right = rawLeft;
       for (let xx = rawLeft; xx <= rawRight; xx++) for (let yy = top; yy < bottom; yy++)
         if (mask[yy * width + xx]) { left = Math.min(left, xx); right = Math.max(right, xx); }
-      if (right - left + 1 < 2 * scale || right - left + 1 > 8 * scale ||
-          bottom - top < 5 * scale || bottom - top > maxGlyphHeight * scale) continue;
+      // 下限保持绝对值（窄笔画如“1”在大档位也只是略高于下限），
+      // 上限随档位放大以容纳放大的字形，同时排除更高的斜杠。
+      if (right - left + 1 < 2 * scale || right - left + 1 > 8 * scale * geo ||
+          bottom - top < 5 * scale || bottom - top > maxGlyphHeight * scale * geo) continue;
       const glyph = { left, right, top, bottom };
       const feature = normalized(mask, width, top, bottom, left, right + 1), scores = new Map();
       for (const template of this.digits) {
@@ -476,7 +489,7 @@ export class CnGameRecognizer {
       const allowed = [...scores]
         .filter(([value]) => CN_HOLE_LIMITS[value][0] <= holeCount && holeCount <= CN_HOLE_LIMITS[value][1])
         .sort((a, b) => a[1] - b[1]);
-      if (!allowed.length || allowed[0][1] > .19) return null;
+      if (!allowed.length || allowed[0][1] > accept) return null;
       if (allowed[1] && allowed[1][1] - allowed[0][1] < .018) return null;
       text += allowed[0][0];
       glyphs.push(glyph);
@@ -501,12 +514,46 @@ export class CnGameRecognizer {
     const value = Number(text);
     return value >= this.bounds.positionMin && value <= this.bounds.positionMax ? value : null;
   }
+  // 底部 HUD 档位判别：NEXT 卡的红色横幅是唯一宽幅红色结构，
+  // 其行位置随 UI 档位整体移动（std 档在 y≈649-660，large 档在
+  // y≈612-633）。粉色卡的红色数字虽也呈红，但单字宽度不足 16，
+  // 不会误判为横幅。两档均无横幅时（无 NEXT 卡在场）保持上一档
+  // 或缺省 std——道具栏其余判别不依赖横幅存在。
+  selectHudVariant() {
+    if (this.hudVariants.length < 2) return;
+    const scale = this.detailData ? 2 : 1;
+    const data = this.detailData ?? this.data;
+    const stride = 1234 * scale;
+    const zoneScore = (y0, y1, x0, x1) => {
+      let rows = 0;
+      for (let y = y0; y <= y1; y++) {
+        let minx = 1e9, maxx = -1;
+        for (let x = x0; x <= x1; x++) {
+          const i = (Math.round(y * scale) * stride + Math.round(x * scale)) * 4;
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          if (r > 110 && r - g > 35 && r - b > 25) { if (x < minx) minx = x; if (x > maxx) maxx = x; }
+        }
+        if (maxx - minx + 1 >= 16) rows++;
+      }
+      return rows;
+    };
+    let best = this.hud, bestScore = -1;
+    for (const variant of this.hudVariants) {
+      const bar = variant.itemBar;
+      const score = zoneScore(bar.y + bar.height * .12, bar.y + bar.height * .5, bar.x, bar.x + bar.width);
+      if (score > bestScore) { bestScore = score; best = variant; }
+    }
+    if (bestScore >= 4) this.hud = best;
+  }
   // 底栏“本局已投掷次数 N/100”的 N：与韩服 diceUsed 同语义。
   // 该值以更暗的灰阶渲染，阈值放宽到 100；窗口内右侧的斜杠
-  // （高 11-12 canonical）由高度上限 9 排除。
+  // 比数字更高，由相对高度上限排除（上限随 HUD 档位放大）。
   diceNumber() {
     if (!this.dice) return null;
-    const read = this.matchGlyphs(this.dice, 100, 9);
+    const geo = Math.max(1, this.hud.slotPitch / 24);
+    // 大档位的计数数字渲染更粗，与细笔画模板的归一化误差整体偏高，
+    // 接受阈值随档位放宽（拓扑门禁仍在，圈数不符的候选已被排除）。
+    const read = this.matchGlyphs(this.dice, 100, this.hud.diceGlyphHeight ?? 9, geo, this.hud.diceAccept ?? .19);
     const value = read === null ? null : Number(read.text);
     return value !== null && value >= 0 && value <= 100 ? value : null;
   }
@@ -522,31 +569,42 @@ export class CnGameRecognizer {
   //   区分（名称待确认）；无模板匹配记 "?"。
   // slots 值约定：null=空槽，number=卡牌 ID，"#k"=指纹身份（未命名），
   // "?"=无法识别。number 类型即“可作为手牌进入推荐引擎”的信号。
-  isNextBanner(data, stride, x0, y0) {
+  isNextBanner(data, stride, x0, y0, w, h) {
     if (!this.detailData) return false;
     const px = (x, y) => (y * stride + x) * 4;
+    // 横幅占据图标上部约 5%-53%（原始标定：76 高窗口的 4-40 行）。
+    const yTop = Math.round(h * .05), yEnd = Math.round(h * .53);
+    const spanMin = Math.round(w * .375), spanSoft = Math.round(w * .17);
+    const whiteMin = Math.max(6, Math.round(w * .17));
     const spans = [];
-    for (let y = 4; y < 40; y++) {
-      let minx = 48, maxx = -1, white = 0;
-      for (let x = 0; x < 48; x++) {
+    for (let y = yTop; y < yEnd; y++) {
+      let minx = w, maxx = -1, white = 0;
+      for (let x = 0; x < w; x++) {
         const i = px(x0 + x, y0 + y);
         const r = data[i], g = data[i + 1], b = data[i + 2];
         if (r > 110 && r - g > 35 && r - b > 25) { if (x < minx) minx = x; if (x > maxx) maxx = x; }
       }
       if (maxx >= minx) for (let x = minx; x <= maxx; x++) {
         const i = px(x0 + x, y0 + y);
-        if (data[i] > 195 && data[i + 1] > 195 && data[i + 2] > 195) white++;
+        const r2 = data[i], g2 = data[i + 1], b2 = data[i + 2];
+        // 横幅上的字在大 UI 档位呈暖金色（红底红字仅靠亮度不可分，
+        // 绿通道是区分者：横幅红 g<80，字 g≥140）。std 档纯白兼容。
+        if (g2 > 140 && Math.max(r2, g2, b2) > 200) white++;
       }
       spans.push(maxx < 0 ? null : { span: maxx - minx + 1, white });
     }
     let run = 0, runWhite = 0;
+    const quietRows = Math.max(3, Math.round(h / 19));
+    // 横幅是细横条（红区高度 ≈ 图标的 27-31%），数字卡的红色大字
+    // 高度占 60%+——超高的红区 run 是数字不是横幅。
+    const runMax = Math.round(spans.length * .35);
     for (let i = 0; i < spans.length; i++) {
       const row = spans[i];
-      if (row && row.span >= 18) { run++; runWhite += row.white; continue; }
-      if (run >= 6) {
+      if (row && row.span >= spanMin) { run++; runWhite += row.white; continue; }
+      if (run >= 6 && run <= runMax) {
         // 横幅之后红色必须停止（数字卡的红色笔画会一直延伸）。
-        const quiet = spans.slice(i, i + 4).filter(r2 => r2 && r2.span >= 8).length;
-        if (quiet <= 1 && runWhite >= 8) return true;
+        const quiet = spans.slice(i, i + quietRows).filter(r2 => r2 && r2.span >= spanSoft).length;
+        if (quiet <= 1 && runWhite >= whiteMin) return true;
       }
       run = 0; runWhite = 0;
     }
@@ -561,37 +619,49 @@ export class CnGameRecognizer {
     const slots = [];
     const slotW = bar.width / bar.slots;
     for (let s = 0; s < bar.slots; s++) {
-      let colored = 0;
       const x0 = Math.round((bar.x + s * slotW) * scale), x1 = Math.round((bar.x + (s + 1) * slotW) * scale);
       const y0 = Math.round(bar.y * scale), y1 = Math.round((bar.y + bar.height) * scale);
+      // 占用判定用“白色卡体”：空槽的边框在大 UI 档位下也是彩色的，
+      // 饱和度判别失效；而卡片（前进/NEXT/骰子）都有大块白色卡体。
+      // 阈值为槽面积的 10%（全分辨率实测：占用 1958-2900+，空槽
+      // 979 以下；std 档占用约 540+，空槽 0）。
+      let white = 0;
       for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
         const i = (y * stride + x) * 4;
         const r = data[i], g = data[i + 1], b = data[i + 2];
-        if (Math.max(r, g, b) - Math.min(r, g, b) > 40 && Math.max(r, g, b) > 120) colored++;
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+        if (mx > 195 && mx - mn < 45) white++;
       }
-      if (colored <= 120 * scale * scale) { slots.push(null); continue; }
-      if (this.isNextBanner(data, stride, x0 + Math.round(scale), y0 + Math.round(3 * scale))) { slots.push(29); continue; }
-      if (!this.itemTemplates?.length) { slots.push("?"); continue; }
-      const fp = new Float64Array(8 * 12 * 3);
-      for (let gy = 0; gy < 12; gy++) for (let gx = 0; gx < 8; gx++) {
-        const xa = x0 + Math.floor(gx / 8 * (x1 - x0)), xb = x0 + Math.floor((gx + 1) / 8 * (x1 - x0));
-        const ya = y0 + Math.floor(gy / 12 * (y1 - y0)), yb = y0 + Math.floor((gy + 1) / 12 * (y1 - y0));
-        let r = 0, g = 0, b = 0, n = 0;
-        for (let y = ya; y < yb; y++) for (let x = xa; x < xb; x++) {
-          const i = (y * stride + x) * 4;
-          r += data[i]; g += data[i + 1]; b += data[i + 2]; n++;
+      if (white <= Math.max(400, (x1 - x0) * (y1 - y0) * .1)) { slots.push(null); continue; }
+      const iw = x1 - x0 - Math.round(2 * scale), ih = y1 - y0 - Math.round(6 * scale);
+      if (this.isNextBanner(data, stride, x0 + Math.round(scale), y0 + Math.round(3 * scale), iw, ih)) { slots.push(29); continue; }
+      let identity = "?";
+      if (this.itemTemplates?.length) {
+        const fp = new Float64Array(8 * 12 * 3);
+        for (let gy = 0; gy < 12; gy++) for (let gx = 0; gx < 8; gx++) {
+          const xa = x0 + Math.floor(gx / 8 * (x1 - x0)), xb = x0 + Math.floor((gx + 1) / 8 * (x1 - x0));
+          const ya = y0 + Math.floor(gy / 12 * (y1 - y0)), yb = y0 + Math.floor((gy + 1) / 12 * (y1 - y0));
+          let r = 0, g = 0, b = 0, n = 0;
+          for (let y = ya; y < yb; y++) for (let x = xa; x < xb; x++) {
+            const i = (y * stride + x) * 4;
+            r += data[i]; g += data[i + 1]; b += data[i + 2]; n++;
+          }
+          if (n) { const o = (gy * 8 + gx) * 3; fp[o] = r / n; fp[o + 1] = g / n; fp[o + 2] = b / n; }
         }
-        if (n) { const o = (gy * 8 + gx) * 3; fp[o] = r / n; fp[o + 1] = g / n; fp[o + 2] = b / n; }
+        let best = null, bestDist = Infinity, second = Infinity;
+        for (const template of this.itemTemplates) {
+          let d = 0;
+          for (let i = 0; i < fp.length; i++) d += (fp[i] - template.fp[i]) ** 2;
+          d = Math.sqrt(d);
+          if (d < bestDist) { second = bestDist; bestDist = d; best = template; }
+          else if (d < second) second = d;
+        }
+        if (bestDist < 600 && second - bestDist > 150) identity = best.card ?? "#" + best.id;
       }
-      let best = null, bestDist = Infinity, second = Infinity;
-      for (const template of this.itemTemplates) {
-        let d = 0;
-        for (let i = 0; i < fp.length; i++) d += (fp[i] - template.fp[i]) ** 2;
-        d = Math.sqrt(d);
-        if (d < bestDist) { second = bestDist; bestDist = d; best = template; }
-        else if (d < second) second = d;
-      }
-      slots.push(bestDist < 600 && second - bestDist > 150 ? (best.card ?? "#" + best.id) : "?");
+      // 同色系卡（前进2 vs 前进8）的区分依赖按档位提取的指纹模板；
+      // 图标数字是装饰字体，其拓扑（如“2”的顶部弧线闭合出一个圈）
+      // 与常规数字不同，不能用作判别。
+      slots.push(identity);
     }
     return { slots, count: slots.filter(v => v !== null).length };
   }
@@ -608,6 +678,7 @@ export class CnGameRecognizer {
     this.detailData = detail?.data ?? null;
     this.lastAnchorScore = 0;
     if (!this.visible()) return { visible: false, cn: true, issue: "covered", anchorScore: 0 };
+    this.selectHudVariant();
     const position = this.number(), diceUsed = this.diceNumber(), items = this.items(), charges = this.charges();
     // 国服手牌 = 道具栏中识别到卡牌 ID 的槽位（number 值）。仅含
     // 已识别的卡是保守子集：识别不到的道具不会进入推荐，但也不会

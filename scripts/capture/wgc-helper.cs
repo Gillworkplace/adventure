@@ -69,6 +69,7 @@ public static class WgcSession {
 
     static volatile byte[] cached;
     static volatile bool draining;
+    static volatile int lastNewTick;
 
     static void DrainLoop() {
         long lastEncode = 0;
@@ -92,7 +93,7 @@ public static class WgcSession {
                 long now = Environment.TickCount;
                 bool need = cached == null || now - lastEncode >= 250;
                 try {
-                    if (need) { cached = Encode(frame); lastEncode = now; }
+                    if (need) { cached = Encode(frame); lastEncode = now; lastNewTick = Environment.TickCount; }
                 } finally { frame.Dispose(); }
             } catch { System.Threading.Thread.Sleep(50); }
         }
@@ -102,6 +103,10 @@ public static class WgcSession {
         if (pool == null) throw new InvalidOperationException("session not started");
         for (int i = 0; i < 67 && cached == null; i++) System.Threading.Thread.Sleep(15);
         if (cached == null) throw new InvalidOperationException("no frame yet");
+        // 窗口销毁后帧池不再产新帧，旧缓存若继续返回会让调用方把
+        // 死窗口误认为活流。超过 1.5s 无新帧视为窗口已关闭。
+        if (Environment.TickCount - lastNewTick > 1500)
+            throw new InvalidOperationException("window closed");
         return cached;
     }
 

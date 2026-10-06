@@ -339,6 +339,7 @@ export class CnGameRecognizer {
     this.pill = templates.pill;
     this.dice = templates.dice;
     this.itemBar = templates.itemBar;
+    this.chargesWindow = templates.charges;
     this.digits = templates.digits.position;
     this.bounds = templates.bounds;
   }
@@ -532,13 +533,21 @@ export class CnGameRecognizer {
     }
     return { slots, count: slots.reduce((sum, v) => sum + v, 0) };
   }
+  // 底栏行1“可投掷次数”：道具充能换来的可投掷余量（物品计数，
+  // 与本局已投掷次数相互独立）。亮色渲染，与胶囊同阈值。
+  charges() {
+    if (!this.chargesWindow) return null;
+    const read = this.matchGlyphs(this.chargesWindow, 135, 12);
+    const value = read === null ? null : Number(read.text);
+    return value !== null && value >= 0 && value <= 9999 ? value : null;
+  }
   readCore(image, context, detail) {
     this.data = image.data;
     this.detailData = detail?.data ?? null;
     this.lastAnchorScore = 0;
     if (!this.visible()) return { visible: false, cn: true, issue: "covered", anchorScore: 0 };
-    const position = this.number(), diceUsed = this.diceNumber(), items = this.items();
-    return { visible: true, cn: true, position, diceUsed, items, hand: [], bonusRoll: diceUsed === null ? null : false,
+    const position = this.number(), diceUsed = this.diceNumber(), items = this.items(), charges = this.charges();
+    return { visible: true, cn: true, position, diceUsed, charges, items, hand: [], bonusRoll: diceUsed === null ? null : false,
       issue: position === null ? "score" : diceUsed === null ? "dice" : null,
       anchorScore: Math.round(this.lastAnchorScore * 1000) / 1000 };
   }

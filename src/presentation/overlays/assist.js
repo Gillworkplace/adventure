@@ -166,9 +166,11 @@ export function bindAssistBar(session, assist, prediction, voice) {
     const request = bar.querySelector(".assist-request");
     if (request.textContent !== title) request.textContent = title;
     const items = assist.tracker.lastObservation?.items;
-    bar.querySelector(".assist-request-detail").textContent = r.ready && items
-      ? `${detail} 道具 ${items.count}/${items.slots.length}。`
-      : detail;
+    const charges = assist.tracker.lastObservation?.charges;
+    const extras = r.ready
+      ? [charges != null ? `可投掷 ${charges}` : null, items ? `道具 ${items.count}/${items.slots.length}` : null].filter(Boolean).join(" · ")
+      : "";
+    bar.querySelector(".assist-request-detail").textContent = extras ? `${detail} ${extras}。` : detail;
     const scanning = !!assist.stream && r.issue?.startsWith("deck-");
     const count = bar.querySelector(".assist-count");
     count.hidden = !scanning; count.textContent = `${r.seen || 0} / 30 已确认`;

@@ -43,7 +43,7 @@ function runs(bits) {
   return result;
 }
 
-function normalized(mask, width, top, bottom, left, right) {
+export function normalized(mask, width, top, bottom, left, right) {
   const output = new Float32Array(216);
   const w = right - left, h = bottom - top;
   for (let y = 0; y < 18; y++) for (let x = 0; x < 12; x++) {
@@ -323,4 +323,115 @@ export class GameRecognizer {
     }
     return { ...observation, deck, character, profile, helperIssue };
   }
+}
+
+// 国服（大冒险）识别器：左上面板为基准窗口，读取位置胶囊
+// “N 格”的数字。6/7 的字形模板尚未采样，含 6/7 的位置
+// 会安全地返回 null，而不是误读。
+export class CnGameRecognizer {
+  constructor(templates) {
+    this.layout = "cn";
+    this.alignRange = 8;
+    this.templates = templates;
+    this.anchor = { ...templates.anchor, mask: this.inkMask(templates.anchor) };
+    this.pill = templates.pill;
+    this.digits = templates.digits.position;
+    this.bounds = templates.bounds;
+  }
+  inkMask(template) {
+    const mask = new Uint8Array(template.width * template.height);
+    for (const p of template.ink) mask[p] = 1;
+    return mask;
+  }
+  pixel(x, y) { const i = (Math.round(y) * WIDTH + Math.round(x)) * 4; return this.data.subarray(i, i + 3); }
+  whiteAt(x, y) { return white(...this.pixel(x, y)); }
+  textMask(x, y, width, height, predicate) {
+    const mask = new Uint8Array(width * height);
+    for (let yy = 0; yy < height; yy++) for (let xx = 0; xx < width; xx++)
+      mask[yy * width + xx] = +predicate(...this.pixel(x + xx, y + yy));
+    return mask;
+  }
+  inkSimilarity(mask, reference) {
+    let total = 0, both = 0;
+    for (let i = 0; i < mask.length; i++) { total += mask[i] + reference[i]; both += mask[i] & reference[i]; }
+    return total ? both * 2 / total : 0;
+  }
+  anchorScore(image) {
+    const mask = new Uint8Array(image.width * image.height);
+    for (let i = 0; i < mask.length; i++) mask[i] = +(Math.min(image.data[i * 4], image.data[i * 4 + 1], image.data[i * 4 + 2]) > 170);
+    return this.inkSimilarity(mask, this.anchor.mask);
+  }
+  visible() {
+    // 面板内容相对面板边框存在几像素的整体漂移，边框白点并不可靠；
+    // 可见性完全由锚点（按钮行白字）决定，worker 的对齐阶段已先做过
+    // 同一校验。
+    const a = this.anchor;
+    const mask = this.textMask(a.x, a.y, a.width, a.height, (r, g, b) => Math.min(r, g, b) > 170);
+    this.lastAnchorScore = this.inkSimilarity(mask, a.mask);
+    return this.lastAnchorScore > .62;
+  }
+  number() {
+    const { x, y, width, height } = this.pill;
+    const mask = this.textMask(x, y, width, height, (r, g, b) => Math.min(r, g, b) > 135);
+    const columns = Array.from({ length: width }, (_, xx) => { for (let yy = 0; yy < height; yy++) if (mask[yy * width + xx]) return true; return false; });
+    // canonical 尺度下笔画很细，任何有墨迹的列都算；胶囊上沿的
+    // 装饰杂线由后面的底部墨迹段与高度过滤剔除。
+    // canonical 尺度下相邻数字只隔 1-2 列，不做游程合并，
+    // 否则相邻数字会被粘成一个超宽块。
+    const parts = [];
+    let start = -1;
+    for (let xx = 0; xx <= columns.length; xx++) {
+      const ink = xx < columns.length && columns[xx];
+      if (ink && start < 0) start = xx;
+      else if (!ink && start >= 0) {
+        if (xx - 1 - start >= 1) parts.push([start, xx - 1]);
+        start = -1;
+      }
+    }
+    if (!parts.length) return null;
+    let text = "";
+    for (const [rawLeft, rawRight] of parts) {
+      const rows = Array.from({ length: height }, (_, yy) => { for (let xx = rawLeft; xx <= rawRight; xx++) if (mask[yy * width + xx]) return true; return false; });
+      // 胶囊上沿的装饰竖线会把包围盒撑高：从最底部的墨迹行向上走，
+      // 容忍字形内部 1-2 行的断笔（如“2”的斜笔在细采样下可能断开），
+      // 遇到 3 行以上的空档才视为装饰线并截止。
+      let bottom = rows.lastIndexOf(true);
+      if (bottom < 0) continue;
+      bottom += 1;
+      let top = bottom - 1, gap = 0;
+      for (let yy = bottom - 2; yy >= 0; yy--) {
+        if (rows[yy]) { top = yy; gap = 0; }
+        else if (++gap > 2) break;
+      }
+      // 段内重新收紧左右边界（剔除与数字粘连的噪声空列）。
+      let left = rawRight, right = rawLeft;
+      for (let xx = rawLeft; xx <= rawRight; xx++) for (let yy = top; yy < bottom; yy++)
+        if (mask[yy * width + xx]) { left = Math.min(left, xx); right = Math.max(right, xx); }
+      if (right < left || bottom - top < 5 || bottom - top > 12 || right - left < 1 || right - left > 7) continue;
+      const feature = normalized(mask, width, top, bottom, left, right + 1), scores = new Map();
+      for (const template of this.digits) {
+        let error = 0;
+        for (let i = 0; i < feature.length; i++) error += Math.abs(feature[i] - template.pixels[i] / 255);
+        error = error / feature.length + Math.abs((right - left + 1) / (bottom - top) - template.width / template.height) * .3;
+        scores.set(template.value, Math.min(scores.get(template.value) ?? Infinity, error));
+      }
+      const sorted = [...scores].sort((a, b) => a[1] - b[1]);
+      if (sorted[0][1] > .19 || sorted[1][1] - sorted[0][1] < .018) return null;
+      text += sorted[0][0];
+    }
+    if (!text || text.length > 4) return null;
+    if (text.length > 1 && text.startsWith("0")) return null;
+    const value = Number(text);
+    return value >= this.bounds.positionMin && value <= this.bounds.positionMax ? value : null;
+  }
+  readCore(image) {
+    this.data = image.data;
+    this.lastAnchorScore = 0;
+    if (!this.visible()) return { visible: false, issue: "covered", anchorScore: 0 };
+    const position = this.number();
+    return { visible: true, position, diceUsed: null, hand: [], bonusRoll: null,
+      issue: position === null ? "score" : null,
+      anchorScore: Math.round(this.lastAnchorScore * 1000) / 1000 };
+  }
+  read(image) { return this.readCore(image); }
 }

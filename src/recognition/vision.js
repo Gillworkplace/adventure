@@ -339,6 +339,7 @@ export class CnGameRecognizer {
     this.pill = templates.pill;
     this.dice = templates.dice;
     this.itemBar = templates.itemBar;
+    this.itemTemplates = templates.items ?? [];
     this.chargesWindow = templates.charges;
     this.digits = templates.digits.position;
     this.bounds = templates.bounds;
@@ -510,8 +511,9 @@ export class CnGameRecognizer {
     return value !== null && value >= 0 && value <= 100 ? value : null;
   }
   // 底部中央道具栏（5 槽）：按槽内彩色像素判定占用——空槽是暗色
-  // 边框，道具图标是有饱和度的彩色立绘。身份识别待样本积累后
-  // 以图标模板加入。
+  // 边框，道具图标是有饱和度的彩色立绘。占用槽的图标与 8×12 RGB
+  // 指纹模板匹配（同道具跨帧距离 <600，不同道具 >1000），未匹配
+  // 的记为 "?"；模板名称待确认后补充。
   items() {
     const bar = this.itemBar;
     if (!bar) return null;
@@ -529,9 +531,30 @@ export class CnGameRecognizer {
         const r = data[i], g = data[i + 1], b = data[i + 2];
         if (Math.max(r, g, b) - Math.min(r, g, b) > 40 && Math.max(r, g, b) > 120) colored++;
       }
-      slots.push(+(colored > 120 * scale * scale));
+      if (colored <= 120 * scale * scale) { slots.push(null); continue; }
+      if (!this.itemTemplates?.length) { slots.push("?"); continue; }
+      const fp = new Float64Array(8 * 12 * 3);
+      for (let gy = 0; gy < 12; gy++) for (let gx = 0; gx < 8; gx++) {
+        const xa = x0 + Math.floor(gx / 8 * (x1 - x0)), xb = x0 + Math.floor((gx + 1) / 8 * (x1 - x0));
+        const ya = y0 + Math.floor(gy / 12 * (y1 - y0)), yb = y0 + Math.floor((gy + 1) / 12 * (y1 - y0));
+        let r = 0, g = 0, b = 0, n = 0;
+        for (let y = ya; y < yb; y++) for (let x = xa; x < xb; x++) {
+          const i = (y * stride + x) * 4;
+          r += data[i]; g += data[i + 1]; b += data[i + 2]; n++;
+        }
+        if (n) { const o = (gy * 8 + gx) * 3; fp[o] = r / n; fp[o + 1] = g / n; fp[o + 2] = b / n; }
+      }
+      let best = null, bestDist = Infinity, second = Infinity;
+      for (const template of this.itemTemplates) {
+        let d = 0;
+        for (let i = 0; i < fp.length; i++) d += (fp[i] - template.fp[i]) ** 2;
+        d = Math.sqrt(d);
+        if (d < bestDist) { second = bestDist; bestDist = d; best = template; }
+        else if (d < second) second = d;
+      }
+      slots.push(bestDist < 600 && second - bestDist > 150 ? best.id : "?");
     }
-    return { slots, count: slots.reduce((sum, v) => sum + v, 0) };
+    return { slots, count: slots.filter(v => v !== null).length };
   }
   // 底栏行1“可投掷次数”：道具充能换来的可投掷余量（物品计数，
   // 与本局已投掷次数相互独立）。亮色渲染，与胶囊同阈值。

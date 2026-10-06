@@ -167,8 +167,17 @@ export function bindAssistBar(session, assist, prediction, voice) {
     if (request.textContent !== title) request.textContent = title;
     const items = assist.tracker.lastObservation?.items;
     const charges = assist.tracker.lastObservation?.charges;
+    // 道具槽显示：卡牌 ID → 短名（跳关卡/骰子N倍/前进N格），
+    // 指纹身份（#k）与未识别（?）保持原样。
+    const itemName = id => {
+      const card = cards[id];
+      if (!card) return "?";
+      if (card.type === 3) return "跳关卡";
+      if (card.type === 2) return `骰子${card.value}倍`;
+      return card.value > 0 ? `前进${card.value}格` : `后退${-card.value}格`;
+    };
     const itemText = items
-      ? `道具 ${items.count}/${items.slots.length}${items.slots.filter(v => v !== null).length ? `（${items.slots.filter(v => v !== null).map(v => v === "?" ? "?" : `#${v}`).join(" ")}）` : ""}`
+      ? `道具 ${items.count}/${items.slots.length}${items.slots.filter(v => v !== null).length ? `（${items.slots.filter(v => v !== null).map(v => typeof v === "number" ? itemName(v) : v).join(" ")}）` : ""}`
       : null;
     const extras = r.ready
       ? [charges != null ? `可投掷 ${charges}` : null, itemText].filter(Boolean).join(" · ")

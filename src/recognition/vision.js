@@ -511,9 +511,47 @@ export class CnGameRecognizer {
     return value !== null && value >= 0 && value <= 100 ? value : null;
   }
   // 底部中央道具栏（5 槽）：按槽内彩色像素判定占用——空槽是暗色
-  // 边框，道具图标是有饱和度的彩色立绘。占用槽的图标与 8×12 RGB
-  // 指纹模板匹配（同道具跨帧距离 <600，不同道具 >1000），未匹配
-  // 的记为 "?"；模板名称待确认后补充。
+  // 边框，道具图标是有饱和度的彩色立绘。国服道具即卡牌（幸运卡），
+  // 与韩服手牌同体系：图标不同渲染但语义相同。身份分两级：
+  // ① 结构判别（优先）：NEXT 跳关卡卡 = 顶部横贯的红色横幅
+  //   （连续多行宽红区 + 内嵌白字 + 横幅下方红色戛然而止），返回
+  //   卡牌 29（引擎中 29/30 行为等价）。数字卡的红色大字下方红色
+  //   延续、暗卡的红色竖条宽度不足，均不会误触发。
+  // ② 指纹模板：8×12 RGB（同道具跨帧距离 <600，不同道具 >1000），
+  //   模板带 card 标注时返回该卡牌 ID，否则返回 "#k" 保持身份
+  //   区分（名称待确认）；无模板匹配记 "?"。
+  // slots 值约定：null=空槽，number=卡牌 ID，"#k"=指纹身份（未命名），
+  // "?"=无法识别。number 类型即“可作为手牌进入推荐引擎”的信号。
+  isNextBanner(data, stride, x0, y0) {
+    if (!this.detailData) return false;
+    const px = (x, y) => (y * stride + x) * 4;
+    const spans = [];
+    for (let y = 4; y < 40; y++) {
+      let minx = 48, maxx = -1, white = 0;
+      for (let x = 0; x < 48; x++) {
+        const i = px(x0 + x, y0 + y);
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        if (r > 110 && r - g > 35 && r - b > 25) { if (x < minx) minx = x; if (x > maxx) maxx = x; }
+      }
+      if (maxx >= minx) for (let x = minx; x <= maxx; x++) {
+        const i = px(x0 + x, y0 + y);
+        if (data[i] > 195 && data[i + 1] > 195 && data[i + 2] > 195) white++;
+      }
+      spans.push(maxx < 0 ? null : { span: maxx - minx + 1, white });
+    }
+    let run = 0, runWhite = 0;
+    for (let i = 0; i < spans.length; i++) {
+      const row = spans[i];
+      if (row && row.span >= 18) { run++; runWhite += row.white; continue; }
+      if (run >= 6) {
+        // 横幅之后红色必须停止（数字卡的红色笔画会一直延伸）。
+        const quiet = spans.slice(i, i + 4).filter(r2 => r2 && r2.span >= 8).length;
+        if (quiet <= 1 && runWhite >= 8) return true;
+      }
+      run = 0; runWhite = 0;
+    }
+    return false;
+  }
   items() {
     const bar = this.itemBar;
     if (!bar) return null;
@@ -532,6 +570,7 @@ export class CnGameRecognizer {
         if (Math.max(r, g, b) - Math.min(r, g, b) > 40 && Math.max(r, g, b) > 120) colored++;
       }
       if (colored <= 120 * scale * scale) { slots.push(null); continue; }
+      if (this.isNextBanner(data, stride, x0 + Math.round(scale), y0 + Math.round(3 * scale))) { slots.push(29); continue; }
       if (!this.itemTemplates?.length) { slots.push("?"); continue; }
       const fp = new Float64Array(8 * 12 * 3);
       for (let gy = 0; gy < 12; gy++) for (let gx = 0; gx < 8; gx++) {
@@ -552,7 +591,7 @@ export class CnGameRecognizer {
         if (d < bestDist) { second = bestDist; bestDist = d; best = template; }
         else if (d < second) second = d;
       }
-      slots.push(bestDist < 600 && second - bestDist > 150 ? best.id : "?");
+      slots.push(bestDist < 600 && second - bestDist > 150 ? (best.card ?? "#" + best.id) : "?");
     }
     return { slots, count: slots.filter(v => v !== null).length };
   }
@@ -570,7 +609,12 @@ export class CnGameRecognizer {
     this.lastAnchorScore = 0;
     if (!this.visible()) return { visible: false, cn: true, issue: "covered", anchorScore: 0 };
     const position = this.number(), diceUsed = this.diceNumber(), items = this.items(), charges = this.charges();
-    return { visible: true, cn: true, position, diceUsed, charges, items, hand: [], bonusRoll: diceUsed === null ? null : false,
+    // 国服手牌 = 道具栏中识别到卡牌 ID 的槽位（number 值）。仅含
+    // 已识别的卡是保守子集：识别不到的道具不会进入推荐，但也不会
+    // 被误当作可用的卡。items 读不到（null）时 hand 为 null，区别
+    // 于空手牌 []，供 tracker 决定保持旧值还是采用屏幕读数。
+    const hand = items ? items.slots.filter(v => typeof v === "number") : null;
+    return { visible: true, cn: true, position, diceUsed, charges, items, hand, bonusRoll: diceUsed === null ? null : false,
       issue: position === null ? "score" : diceUsed === null ? "dice" : null,
       anchorScore: Math.round(this.lastAnchorScore * 1000) / 1000 };
   }

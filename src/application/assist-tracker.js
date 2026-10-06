@@ -402,7 +402,7 @@ export class AssistTracker {
   record(observation, at) {
     if (!Number.isFinite(at) || at < (this.observations.at(-1)?.at ?? at) - 120000) return;
     const row = { at, observation: completeCore(observation) ? { visible: true, ...core(observation),
-      hand: [...observation.hand], overlay: !!observation.overlay, dimmed: !!observation.dimmed,
+      hand: [...(observation.hand ?? [])], overlay: !!observation.overlay, dimmed: !!observation.dimmed,
       illumination: observation.illumination ?? 1 } : { visible: false, partial: observation?.visible === true } };
     const index = this.observations.findIndex(record => record.at >= at);
     if (index < 0) this.observations.push(row);
@@ -531,7 +531,11 @@ export class AssistTracker {
     }
     const rawKey = keyOf(observation);
     if (this.manual && (this.manual.key !== rawKey || at > this.manual.expires)) this.manual = null;
-    const observed = this.manual ? { ...observation, ...this.manual.values } : observation;
+    const merged = this.manual ? { ...observation, ...this.manual.values } : observation;
+    // 国服手牌从道具栏读出（识别到卡牌 ID 的槽位）。道具栏被遮住
+    // 读不到（hand=null）时沿用状态原值——那是“未知”，不是“空”。
+    const observed = merged.cn && !Array.isArray(merged.hand)
+      ? { ...merged, hand: this.state?.hand ?? [] } : merged;
     const complete = completeCore(observed);
     if (!complete) {
       this.pendingKey = null;
@@ -552,10 +556,10 @@ export class AssistTracker {
     if (key !== this.pendingKey) { this.pendingKey = key; this.pendingSince = at; this.pendingCount = 1; }
     else this.pendingCount++;
     if (!this.verified) this.collectDeck(observed, key, at, sourceFrame);
-    // 国服的手牌/按钮状态是粘性的：无手动修正时观测值携带的是
-    // “未知”（空手牌），不是“打出卡牌”，按状态原值参与比较。
+    // 国服的手牌已是道具栏的直读值（null 已在上面归一化）；按钮
+    // （奖励投掷）状态屏幕上仍读不到，比较时保持状态原值。
     const comparable = observed.cn && !this.manual
-      ? { ...observed, hand: this.state?.hand ?? [], bonusRoll: this.state?.bonusRoll ?? observed.bonusRoll }
+      ? { ...observed, bonusRoll: this.state?.bonusRoll ?? observed.bonusRoll }
       : observed;
     const unchanged = this.verified && same(core(comparable), { ...core(this.state), hand: classes(this.state.hand) });
     // 分数未变但骰子/卡牌已消耗，是动作前奏，包括棋盘被其他窗口
@@ -635,22 +639,24 @@ export class AssistTracker {
       this.accepted(at);
       return this.result(null, { state: this.state, deckOpen: !!observed.deck?.open });
     }
-    // 国服状态完全可观测（位置+本局已投掷次数直读）：不存在需要
-    // 通过动作序列恢复的牌库知识，稳定的屏幕读数本身就是新状态。
-    // 手牌与骰子按钮状态屏幕上读不到，保持当前值（仅手动修正或
-    // 新开局 fresh 重置会改写）。骰子数回退/跳变，或位置变化而无
-    // 投掷，属于规则模型无法解释的迁移，记入失配供诊断（不阻塞同步）。
+    // 国服状态完全可观测（位置+本局已投掷次数+道具栏手牌直读）：
+    // 不存在需要通过动作序列恢复的牌库知识，稳定的屏幕读数本身就
+    // 是新状态。奖励投掷按钮屏幕上读不到，保持当前值（仅手动修正
+    // 或新开局 fresh 重置会改写）。骰子数回退/跳变，或位置变化而既
+    // 无投掷也无手牌消耗（= 用确定性卡牌），属于规则模型无法解释
+    // 的迁移，记入失配供诊断（不阻塞同步）。
     if (observed.cn) {
       const diceDelta = observed.diceUsed - this.state.diceUsed;
       const unexplained = diceDelta < 0 || diceDelta > 2 ||
-        (observed.position !== this.state.position && diceDelta === 0);
+        (observed.position !== this.state.position && diceDelta === 0 &&
+          observed.hand.length >= this.state.hand.length);
       this.lastMismatch = unexplained
         ? { reason: "cn-unexplained", from: core(this.state), to: core(observed), diceDelta }
         : null;
       this.state = { schemaVersion: 1, rulesVersion: RULES_VERSION,
         position: observed.position, diceUsed: observed.diceUsed,
         bonusRoll: this.manual ? observed.bonusRoll : this.state.bonusRoll,
-        hand: this.manual ? [...observed.hand] : this.state.hand,
+        hand: [...observed.hand],
         deckAvailable: FULL_DECK };
       this.accepted(at);
       return this.result(null, { state: this.state });
